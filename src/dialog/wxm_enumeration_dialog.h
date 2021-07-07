@@ -1,7 +1,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 // Name:        dialog/wxm_enumeration_dialog.h
 // Description: Insert Ordered Sequence Dialog
-// Copyright:   2015  JiaYanwei   <wxmedit@gmail.com>
+// Copyright:   2015-2019  JiaYanwei   <wxmedit@gmail.com>
 // License:     GPLv3
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -10,23 +10,33 @@
 
 #include "../xm/cxx11.h"
 #include "../wxm/choice_map.hpp"
-#include "../wxmedit/ucs4_t.h"
+#include "../xm/encoding/encoding_def.h"
 
+#ifdef _MSC_VER
+# pragma warning( push )
+# pragma warning( disable : 4996 )
+#endif
+// disable 4996 {
 //(*Headers(WXMEnumerationDialog)
+#include <wx/button.h>
+#include <wx/checkbox.h>
+#include <wx/choice.h>
+#include <wx/dialog.h>
+#include <wx/radiobut.h>
 #include <wx/sizer.h>
 #include <wx/stattext.h>
 #include <wx/textctrl.h>
-#include <wx/checkbox.h>
-#include <wx/radiobut.h>
-#include <wx/choice.h>
-#include <wx/button.h>
-#include <wx/dialog.h>
 //*)
+// disable 4996 }
+#ifdef _MSC_VER
+# pragma warning( pop )
+#endif
 
 #include <unicode/utypes.h>
 #include <unicode/unistr.h>
 #include <unicode/translit.h>
 #include <unicode/numfmt.h>
+using namespace U_ICU_NAMESPACE;
 
 #include <boost/shared_ptr.hpp>
 #include <boost/scoped_ptr.hpp>
@@ -65,7 +75,7 @@ namespace wxm
 	protected:
 		virtual void ToHalfWidth(UnicodeString& us) = 0;
 		virtual void ToFullWidth(UnicodeString& us) = 0;
-		boost::scoped_ptr<icu::Transliterator> m_fwtr;
+		boost::scoped_ptr<Transliterator> m_fwtr;
 	};
 
 	struct NSIPadding
@@ -114,7 +124,7 @@ namespace wxm
 			return DecFormat(n, groupping);
 		}
 
-		boost::scoped_ptr <icu::NumberFormat> m_icufmt;
+		boost::scoped_ptr <NumberFormat> m_icufmt;
 		size_t m_len;
 		bool m_grouping;
 		bool m_fullwidth;
@@ -143,41 +153,41 @@ class WXMEnumerationDialog: public wxDialog
 		virtual ~WXMEnumerationDialog();
 
 		//(*Declarations(WXMEnumerationDialog)
-		wxRadioButton* RadioButtonHalfWidth;
-		wxStaticText* StaticText9;
-		wxRadioButton* RadioButtonHex;
-		wxRadioButton* RadioButtonBin;
-		wxTextCtrl* TextCtrlFinalNum;
-		wxStaticText* StaticText2;
-		wxStaticText* StaticTextInitalNum;
-		wxStaticText* StaticText6;
-		wxButton* ButtonOK;
-		wxChoice* ChoiceFinalCmp;
-		wxChoice* ChoiceStepOp;
-		wxStaticText* StaticText8;
-		wxTextCtrl* TextCtrlPreview;
-		wxStaticText* StaticText1;
-		wxStaticText* StaticText3;
-		wxRadioButton* RadioButtonUpper;
 		wxButton* ButtonCancel;
-		wxChoice* ChoicePadding;
-		wxStaticText* StaticText5;
-		wxStaticText* StaticText7;
-		wxRadioButton* RadioButtonOct;
-		wxStaticText* StaticTextStep;
-		wxRadioButton* RadioButtonLower;
-		wxRadioButton* RadioButtonDec;
-		wxChoice* ChoiceAlign;
-		wxTextCtrl* TextCtrlStepParam;
-		wxStaticText* StaticTextFinalNum;
-		wxChoice* ChoiceLength;
-		wxTextCtrl* TextCtrlPostfix;
-		wxStaticText* StaticText4;
-		wxRadioButton* RadioButtonFullWidth;
-		wxChoice* ChoiceNumSys;
-		wxTextCtrl* TextCtrlPrefix;
+		wxButton* ButtonOK;
 		wxCheckBox* CheckBoxGrpSep;
+		wxChoice* ChoiceAlign;
+		wxChoice* ChoiceFinalCmp;
+		wxChoice* ChoiceLength;
+		wxChoice* ChoiceNumSys;
+		wxChoice* ChoicePadding;
+		wxChoice* ChoiceStepOp;
+		wxRadioButton* RadioButtonBin;
+		wxRadioButton* RadioButtonDec;
+		wxRadioButton* RadioButtonFullWidth;
+		wxRadioButton* RadioButtonHalfWidth;
+		wxRadioButton* RadioButtonHex;
+		wxRadioButton* RadioButtonLower;
+		wxRadioButton* RadioButtonOct;
+		wxRadioButton* RadioButtonUpper;
+		wxStaticText* StaticText1;
+		wxStaticText* StaticText2;
+		wxStaticText* StaticText3;
+		wxStaticText* StaticText4;
+		wxStaticText* StaticText5;
+		wxStaticText* StaticText6;
+		wxStaticText* StaticText7;
+		wxStaticText* StaticText8;
+		wxStaticText* StaticText9;
+		wxStaticText* StaticTextFinalNum;
+		wxStaticText* StaticTextInitalNum;
+		wxStaticText* StaticTextStep;
+		wxTextCtrl* TextCtrlFinalNum;
 		wxTextCtrl* TextCtrlInitialNum;
+		wxTextCtrl* TextCtrlPostfix;
+		wxTextCtrl* TextCtrlPrefix;
+		wxTextCtrl* TextCtrlPreview;
+		wxTextCtrl* TextCtrlStepParam;
 		//*)
 
 		void SetSelectedRows(size_t n) { m_selrows = n; Preview(); }

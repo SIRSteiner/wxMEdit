@@ -2,7 +2,7 @@
 // vim:         ts=4 sw=4 expandtab
 // Name:        wxm_utils.h
 // Description: Utility Functions
-// Copyright:   2013-2015  JiaYanwei   <wxmedit@gmail.com>
+// Copyright:   2013-2019  JiaYanwei   <wxmedit@gmail.com>
 //              2005-2010  Alston Chen <madedit@gmail.com>
 // License:     GPLv3
 ///////////////////////////////////////////////////////////////////////////////
@@ -10,7 +10,7 @@
 #ifndef _MAD_UTILS_H_
 #define _MAD_UTILS_H_
 
-#include "wxmedit/ucs4_t.h"
+#include "xm/encoding/encoding_def.h"
 
 #ifdef _MSC_VER
 # pragma warning( push )
@@ -45,7 +45,7 @@ inline ucs4_t ToHex(int d)// 0 <= d <= 15
 {
     if (d < 10)
         return '0' + d;
-	return 'A' + d - 10;
+    return 'A' + d - 10;
 }
 
 inline int FromHex(wxChar c)

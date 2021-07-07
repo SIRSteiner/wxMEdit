@@ -1,7 +1,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 // Name:        dialog/wxmedit_about_dialog.h
 // Description: wxMEdit About Dialog
-// Copyright:   2013-2015  JiaYanwei   <wxmedit@gmail.com>
+// Copyright:   2013-2019  JiaYanwei   <wxmedit@gmail.com>
 // License:     GPLv3
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -14,17 +14,21 @@
 #endif
 // disable 4996 {
 //(*Headers(WXMEditAboutDialog)
-#include <wx/notebook.h>
-#include <wx/sizer.h>
-#include <wx/textctrl.h>
-#include <wx/panel.h>
-#include <wx/statbmp.h>
 #include <wx/button.h>
 #include <wx/dialog.h>
+#include <wx/notebook.h>
+#include <wx/panel.h>
+#include <wx/sizer.h>
+#include <wx/statbmp.h>
+#include <wx/textctrl.h>
 //*)
 // disable 4996 }
 #ifdef _MSC_VER
 # pragma warning( pop )
+#endif
+
+#ifndef wxTE_AUTO_SCROLL
+#define wxTE_AUTO_SCROLL 0
 #endif
 
 namespace wxm
@@ -42,17 +46,17 @@ class WXMEditAboutDialog: public wxDialog
 		virtual ~WXMEditAboutDialog();
 
 		//(*Declarations(WXMEditAboutDialog)
-		wxStaticBitmap* StaticBitmap2;
-		wxNotebook* Notebook1;
-		wxStaticBitmap* StaticBitmap1;
-		wxPanel* LicenseTab;
-		wxTextCtrl* TxtAbout;
-		wxPanel* AoubtTab;
 		wxButton* WxButtonCancel;
-		wxTextCtrl* TxtCredits;
 		wxButton* WxButtonOK;
-		wxTextCtrl* TxtLicense;
+		wxNotebook* Notebook1;
+		wxPanel* AoubtTab;
 		wxPanel* CreditsTab;
+		wxPanel* LicenseTab;
+		wxStaticBitmap* StaticBitmap1;
+		wxStaticBitmap* StaticBitmap2;
+		wxTextCtrl* TxtAbout;
+		wxTextCtrl* TxtCredits;
+		wxTextCtrl* TxtLicense;
 		//*)
 
 	protected:

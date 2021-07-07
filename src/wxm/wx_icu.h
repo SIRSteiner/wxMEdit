@@ -2,7 +2,7 @@
 // vim:         ts=4 sw=4
 // Name:        wxm/wx_icu.h
 // Description: wxWidgets/ICU Type Adapter
-// Copyright:   2013-2015  JiaYanwei   <wxmedit@gmail.com>
+// Copyright:   2013-2019  JiaYanwei   <wxmedit@gmail.com>
 // License:     GPLv3
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -21,6 +21,7 @@
 #endif
 
 #include <unicode/unistr.h>
+using U_ICU_NAMESPACE::UnicodeString;
 
 namespace wxm
 {

@@ -1,7 +1,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 // Name:        dialog/wxm_conv_enc_dialog.h
 // Description: Encoding Conversion Dialog
-// Copyright:   2013-2015  JiaYanwei   <wxmedit@gmail.com>
+// Copyright:   2013-2019  JiaYanwei   <wxmedit@gmail.com>
 // License:     GPLv3
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -16,18 +16,19 @@
 #endif
 // disable 4996 {
 //(*Headers(WXMConvEncDialog)
+#include <wx/button.h>
+#include <wx/combobox.h>
+#include <wx/dialog.h>
+#include <wx/radiobox.h>
 #include <wx/sizer.h>
 #include <wx/stattext.h>
-#include <wx/radiobox.h>
-#include <wx/button.h>
-#include <wx/dialog.h>
-#include <wx/combobox.h>
 //*)
 // disable 4996 }
 #ifdef _MSC_VER
 # pragma warning( pop )
 #endif
 
+#include <string>
 
 class WXMConvEncDialog: public wxDialogWrapper
 {
@@ -37,14 +38,14 @@ class WXMConvEncDialog: public wxDialogWrapper
 		virtual ~WXMConvEncDialog();
 
 		//(*Declarations(WXMConvEncDialog)
-		wxRadioBox* WxRadioBoxOption;
-		wxStaticText* StaticText1;
-		wxComboBox* WxComboBoxEncoding;
 		wxButton* WxButtonCancel;
 		wxButton* WxButtonOK;
+		wxComboBox* WxComboBoxEncoding;
+		wxRadioBox* WxRadioBoxOption;
+		wxStaticText* StaticText1;
 		//*)
 
-		wxString GetEncoding() const;
+		std::wstring GetEncoding() const;
 	protected:
 
 		//(*Identifiers(WXMConvEncDialog)

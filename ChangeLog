@@ -1,20 +1,47 @@
-2015-04-21 12:08:36 +0800 JiaYanwei <wxmedit@gmail.com>
+2016-03-16 15:36:06 +0800 JiaYanwei <wxmedit@gmail.com>
 
-	* wxMEdit v2.9.9.3:
-	 1. added new options to display/print bookmark independent of line number.
-	 2. added a option whether enable dot matching new-line in regular expression.
-	 3. added a feature that show searching message in status bar when Search/Replace Dialog is invisible.
-	 4. improved bookmark appearance for displaying and printing.
-	 5. improved Tab and EOF mark pattern, make it easy to distinguish Tab mark from space mark.
-	 6. fixed that there are too few characters limited in a line with certain word wrap settings.
-	 7. fixed that width of list items in Syntax Highlighting Settings Dialog are not updated on resizing.
-	 8. fixed not responding when counting/replacing-all any zero-length assertions.
-	 9. updated Unicode block descriptions for Unicode 7.0 (require ICU 54 or higher).
-	10. added German translation by Ronny Steiner <post[at]sirsteiner.de>.
-	11. added Polish translation by Adam Massalski <massaada[at]wp.pl>.
-	12. updated Japanese translation by Tilt <tiltstr[at]gmail.com>.
+	* wxMEdit v3.1:
+	 1. added a killer feature: word boundary with Chinese/Japanese/Thai/Lao/Khmer and Burmese characters etc.
+	 2. added a killer feature: word-wrap meet the Unicode® Standard Annex `#14`: Unicode Line Breaking Algorithm.
+	 3. added new feature: column align.
+	 4. added toolbar icon & shortcut for Inserting Ordered Sequence.
+	 5. changed End-of-Line mark patterns.
+	 6. updated Unicode block descriptions for Unicode 8.0 (require ICU 56 or higher).
+	 7. fixed incorrect word boundary with non-English characters when selecting word.
+	 8. fixed incorrect word-wrap with non-English letters.
+	 9. fixed broken characters input with numpad in wxMEdit that built with wxWidgets-3.0 GTK2.
+	10. fixed incorrect behavior of when Ctrl-Backspace pressed at beginning of a text file OR at zero-width selection in column mode.
+	11. fixed that cannot select the whole word wraped in different lines by double-click.
+	12. fixed that triple-click cannot select a whole wrapped line.
+	13. fixed that files are not keep in hex mode after restart & restore.
+	14. fixed newline redundance when copying in regular text mode.
+	15. updated Spanish translation by Carlos Sánchez <carlos1994sanchez[at]gmail.com>.
+	16. updated Japanese translation by Tilt <tiltstr[at]gmail.com>.
+	17. updated Simplified Chinese translation.
+	18. updated Traditional Chinese translation by Vincent_TW.
+	19. updated Russian translation by Будинов Станислав <stabud[at]yandex.ru>.
+	20. other minor changes and bug fixes.
+
+
+2015-08-03 12:52:41 +0800 JiaYanwei <wxmedit@gmail.com>
+
+	* wxMEdit v3.0:
+	 1. added a killer feature: Insert Ordered Sequence.
+	 2. added new options to display/print bookmark independent of line number.
+	 3. added a option whether enable dot matching new-line in regular expression.
+	 4. added a feature that show searching message in status bar when Search/Replace Dialog is invisible.
+	 5. improved bookmark appearance for displaying and printing.
+	 6. improved Tab and EOF mark pattern, make it easy to distinguish Tab mark from space mark.
+	 7. fixed that there are too few characters limited in a line with certain word wrap settings.
+	 8. fixed that width of list items in Syntax Highlighting Settings Dialog are not updated on resizing.
+	 9. fixed not responding when counting/replacing-all any zero-length assertions.
+	10. updated Unicode block descriptions for Unicode 7.0 (require ICU 54 or higher).
+	11. added German translation by Ronny Steiner <post[at]sirsteiner.de>.
+	12. added Polish translation by Adam Massalski <massaada[at]wp.pl>.
 	13. updated Simplified Chinese translation.
-	14. other minor changes and bug fixes.
+	14. updated Japanese translation by Tilt <tiltstr[at]gmail.com>.
+	15. updated Spanish translation by Carlos Sánchez <carlos1994sanchez[at]gmail.com>.
+	16. other minor changes and bug fixes.
 
 
 2014-12-26 21:37:12 +0800 JiaYanwei <wxmedit@gmail.com>
@@ -123,16 +150,17 @@
 2013-09-05 13:47:34 +0800 JiaYanwei <wxmedit@gmail.com>
 
 	* wxMEdit v2.9.5:
-	 1. fixed crash when delete a character in a line which contains two or more characters with MadEdit/wxMEdit built with vc2010.
-	 2. fixed Fedora build and packing by Huaren Zhong <huaren.zhong[at]gmail.com>.
-	 3. fixed recent lists case sensitive and truncated in menu bug.
-	 4. fixed Double-byte conversion bug.
-	 5. changed EUC-JP implementation to meet CP20932.
-	 6. added CP850, CP852, CP855, KOI8-U, ISO-8859-16, Windows-1258 and GB18030 support.
-	 7. made more system encodings(e.g. Windows-1258) detectable.
-	 8. added Spanish translation by Carlos Sánchez <carlos1994sanchez[at]gmail.com>.
-	 9. updated Japanese translation by Tilt <tiltstr[at]gmail.com>.
-	10. updated Chinese translations.
+	 1. added a killer feature: BOM support for GB18030.
+	 2. added CP850, CP852, CP855, KOI8-U, ISO-8859-16, Windows-1258 and GB18030 support.
+	 3. made more system encodings(e.g. Windows-1258) detectable.
+	 4. changed EUC-JP implementation to meet CP20932.
+	 5. fixed crash when delete a character in a line which contains two or more characters with MadEdit/wxMEdit built with vc2010.
+	 6. fixed Fedora build and packing by Huaren Zhong <huaren.zhong[at]gmail.com>.
+	 7. fixed recent lists case sensitive and truncated in menu bug.
+	 8. fixed Double-byte conversion bug.
+	 9. added Spanish translation by Carlos Sánchez <carlos1994sanchez[at]gmail.com>.
+	10. updated Japanese translation by Tilt <tiltstr[at]gmail.com>.
+	11. updated Chinese translations.
 
 
 2013-07-31 22:55:43 +0800 JiaYanwei <wxmedit@gmail.com>

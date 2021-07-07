@@ -2,7 +2,7 @@
 // vim:         sw=4 ts=4
 // Name:        wxm/searcher.cpp
 // Description: wxMEdit Searching and Replacing Functions
-// Copyright:   2013-2015  JiaYanwei   <wxmedit@gmail.com>
+// Copyright:   2013-2019  JiaYanwei   <wxmedit@gmail.com>
 //              2005-2010  Alston Chen <madedit@gmail.com>
 // License:     GPLv3
 ///////////////////////////////////////////////////////////////////////////////
@@ -22,7 +22,7 @@
 #include <boost/xpressive/xpressive_dynamic.hpp>
 #include <boost/xpressive/traits/null_regex_traits.hpp>
 #include <boost/xpressive/traits/cpp_regex_traits.hpp>
-#include <boost/tr1/unordered_map.hpp>
+#include <boost/unordered_map.hpp>
 
 using namespace std;
 using namespace boost::xpressive;
@@ -66,7 +66,7 @@ public:
 	}
 };
 
-typedef std::tr1::unordered_map<unsigned int, int> UCS4_Map;
+typedef boost::unordered_map<unsigned int, int> UCS4_Map;
 
 class JumpTable_UCS4
 {
@@ -194,29 +194,11 @@ bool Search(CharIter &begin, CharIter &end, const Seq& pattern,
 #ifdef __WXMSW__
 namespace boost { namespace xpressive { namespace detail
 {
-
-#if BOOST_VERSION >= 103500
-
 	template<>
 	struct string_type<ucs4_t>  // defined in xpressive/detail/detail_fwd.hpp
 	{
 		typedef ucs4string type;
 	};
-
-#else
-
-	template<char Ch, wchar_t Wch>
-	struct char_literal<ucs4_t, Ch, Wch>
-	{
-		BOOST_STATIC_CONSTANT(ucs4_t, value = Wch);
-	};
-
-#ifndef BOOST_NO_INCLASS_MEMBER_INITIALIZATION
-	template<char Ch, wchar_t Wch>
-	ucs4_t const char_literal<ucs4_t, Ch, Wch>::value;
-#endif
-
-#endif
 
 	template<>
 	struct string_literal<ucs4_t>
@@ -327,7 +309,7 @@ typedef cpp_regex_traits<ucs4_t> ucs4_regex_traits;
 
 struct UCQueueSet
 {
-	MadUCQueue   ucq;
+	xm::UCQueue  ucq;
 	int          lock;
 };
 
@@ -396,7 +378,7 @@ struct UCIterator : public WXMCharIterator   // ucs4_t widechar iterator
 		if (pos >= s_lines->GetSize())
 			return;
 
-		MadUCQueue& ucqueue = ucqit->ucq;
+		xm::UCQueue& ucqueue = ucqit->ucq;
 		s_lines->InitNextUChar(lit, linepos);
 		int i = BUF_MAXSIZE;
 
@@ -431,7 +413,7 @@ struct UCIterator : public WXMCharIterator   // ucs4_t widechar iterator
 	{
 		wxASSERT(ucqidx >= 0 && ucqidx < int(ucqit->ucq.size()));
 
-		return ucqit->ucq[ucqidx].first;
+		return ucqit->ucq[ucqidx].ucs4();
 	}
 
 	/***
@@ -446,9 +428,9 @@ struct UCIterator : public WXMCharIterator   // ucs4_t widechar iterator
 	{
 		wxASSERT(ucqidx >= 0 && ucqidx < int(ucqit->ucq.size()));
 
-		MadUCQueue *ucqueue = &(ucqit->ucq);
+		xm::UCQueue *ucqueue = &(ucqit->ucq);
 
-		int len = (*ucqueue)[ucqidx].second;
+		int len = (*ucqueue)[ucqidx].nbytes();
 		pos += len;
 		linepos += len;
 
@@ -528,18 +510,18 @@ struct UCIterator : public WXMCharIterator   // ucs4_t widechar iterator
 
 			ucqidx = 0;
 
-			MadUCPair ucp = s_lines->PreviousUChar(lit, linepos);
+			xm::CharUnit cu = s_lines->PreviousUChar(lit, linepos);
 
-			wxASSERT(ucp.second != 0);
+			wxASSERT(cu.nbytes() != 0);
 
-			pos -= ucp.second;
-			ucqit->ucq.push_back(ucp);
+			pos -= cu.nbytes();
+			ucqit->ucq.push_back(cu);
 
 			return *this;
 		}
 
 		--ucqidx;
-		int len = ucqit->ucq[ucqidx].second;
+		int len = ucqit->ucq[ucqidx].nbytes();
 		pos -= len;
 
 		if (linepos == 0)
@@ -995,7 +977,7 @@ MadSearchResult TextSearcher::FindPrevious(const wxString &text,
 
 		if (state == SR_YES) // found
 		{
-			MadUCQueue ucq;
+			xm::UCQueue ucq;
 
 			MadCaretPos bp, ep;
 			do
@@ -1012,8 +994,8 @@ MadSearchResult TextSearcher::FindPrevious(const wxString &text,
 					m_edit->m_Lines->InitNextUChar(bpos1.iter, 0);
 					m_edit->m_Lines->NextUChar(ucq);
 				}
-				bpos1.pos += ucq.back().second;
-				bpos1.linepos += ucq.back().second;
+				bpos1.pos += ucq.back().nbytes();
+				bpos1.linepos += ucq.back().nbytes();
 
 				epos1 = epos;
 			} while (Search(bpos1, epos1, text));
@@ -1247,7 +1229,7 @@ int TextSearcher::ReplaceAll(const wxString &expr, const wxString &fmt,
 
 void TextSearcher::UpdateWXMEditCaret(MadCaretPos& cp)
 {
-	MadUCQueue dummyUCQueue;
+	xm::UCQueue dummyUCQueue;
 	vector<int> dummyWidthArray;
 	int dummyUCPos;
 

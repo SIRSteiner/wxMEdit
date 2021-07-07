@@ -2,7 +2,7 @@
 // vim:         ts=4 sw=4
 // Name:        wxm/wx_icu.cpp
 // Description: wxWidgets/ICU Type Adapter
-// Copyright:   2013-2015  JiaYanwei   <wxmedit@gmail.com>
+// Copyright:   2013-2019  JiaYanwei   <wxmedit@gmail.com>
 // License:     GPLv3
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -28,7 +28,7 @@ namespace wxm
 UnicodeString WxStrToICU(const wxString& wxs)
 {
 #ifdef __WXMSW__
-	return UnicodeString(wxs.wc_str(), wxs.Length());
+	return UnicodeString(wxs.wc_str(), (int32_t)wxs.Length());
 #else
 	return UnicodeString::fromUTF32((const UChar32*)wxs.wc_str(), wxs.Length());
 #endif
@@ -36,7 +36,7 @@ UnicodeString WxStrToICU(const wxString& wxs)
 
 wxString ICUStrToWx(const UnicodeString& us)
 {
-	size_t cap = us.length() + 1;
+	int32_t cap = us.length() + 1;
 	boost::scoped_array<wchar_t> wbuff(new wchar_t[cap]);
 	UErrorCode errcode = U_ZERO_ERROR;
 

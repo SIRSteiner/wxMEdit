@@ -1,5 +1,5 @@
                       ==================================
-                                wxMEdit v2.9.9.3
+                                wxMEdit v3.1+
                       ==================================
 About:
 -----
@@ -14,36 +14,33 @@ In HexMode, wxMEdit can open large files which size is up to 32GB (INT_MAX*16).
 Supported Platforms:
 -------------------
 A. Linux, FreeBSD/OpenBSD/NetBSD, Mac OS X, OpenIndiana and other Unix-like OSes (__WXGTK__):
-   a. GNU C++ 3.x/4.x OR clang++ 2.8 or higher:
+   a. GNU C++ 3.x~9.x OR clang++ 2.8 or higher:
       Required Tools and Libraries to compile:
       1. autoconf 2.63 or higher
       2. automake 1.11.1 or higher
       3. wxWidgets 2.8/3.0 with Unicode enabled
-      4. Boost 1.34.0 or higher
-      5. ICU4C 4.2 or higher
+      4. Boost 1.53.0 or higher
+      5. ICU4C 50 or higher
       6. libcurl 7.15.5 or higher
 
-B. MS Windows (__WXMSW__):
-   a. MinGW32 GNU C++ 3.x/4.x:
+B. Windows / ReactOS (__WXMSW__):
+   a. MinGW32 GNU C++ 3.x~9.x:
       Required Tools and Libraries to compile:
-      1. Bakefile 0.2.9
+      1. Bakefile 0.2.9~0.2.11
       2. wxWidgets 2.8/3.0 with Unicode enabled
-      3. Boost 1.34.0 or higher
-      4. ICU4C 4.2 or higher
+      3. Boost 1.53.0 or higher
+      4. ICU4C 50 or higher
       5. libcurl 7.15.5 or higher
 
-   b. Visual C++ 2005/2008/2010~2013 (by upgrading from 2008 solution and project files):
+   b. Visual C++ 2005/2008/2010~2019 (by upgrading from 2008 solution and project files):
       Required Tools and Libraries to compile:
-      1. Bakefile 0.2.9
+      1. Bakefile 0.2.9~0.2.11
       2. wxWidgets 2.8/3.0 with Unicode enabled
-      3. Boost 1.34.0 or higher
-      4. ICU4C 4.2 or higher
+      3. Boost 1.53.0 or higher
+      4. ICU4C 50 or higher
       5. libcurl 7.15.5 or higher
 
 NOTE:
-   wxMEdit can be built with clang and libstdc++ under FreeBSD and some Linux 
-distrobutions, but it may be failed under other Linux distrobutions.
-
    You can download Bakefile at:
       http://www.bakefile.org/download.html
 
@@ -70,21 +67,45 @@ Syntax files, Locale files and Settings:
 
 ChangeLog:
 ----------
-wxMEdit v2.9.9.3:
-  1. added new options to display/print bookmark independent of line number.
-  2. added a option whether enable dot matching new-line in regular expression.
-  3. added a feature that show searching message in status bar when Search/Replace Dialog is invisible.
-  4. improved bookmark appearance for displaying and printing.
-  5. improved Tab and EOF mark pattern, make it easy to distinguish Tab mark from space mark.
-  6. fixed that there are too few characters limited in a line with certain word wrap settings.
-  7. fixed that width of list items in Syntax Highlighting Settings Dialog are not updated on resizing.
-  8. fixed not responding when counting/replacing-all any zero-length assertions.
-  9. updated Unicode block descriptions for Unicode 7.0 (require ICU 54 or higher).
- 10. added German translation by Ronny Steiner <post[at]sirsteiner.de>.
- 11. added Polish translation by Adam Massalski <massaada[at]wp.pl>.
- 12. updated Japanese translation by Tilt <tiltstr[at]gmail.com>.
+wxMEdit v3.1:
+  1. added a killer feature: word boundary with Chinese/Japanese/Thai/Lao/Khmer and Burmese characters etc.
+  2. added a killer feature: word-wrap meet the Unicode® Standard Annex `#14`: Unicode Line Breaking Algorithm.
+  3. added new feature: column align.
+  4. added toolbar icon & shortcut for Inserting Ordered Sequence.
+  5. changed End-of-Line mark patterns.
+  6. updated Unicode block descriptions for Unicode 8.0 (require ICU 56 or higher).
+  7. fixed incorrect word boundary with non-English characters when selecting word.
+  8. fixed incorrect word-wrap with non-English letters.
+  9. fixed broken characters input with numpad in wxMEdit that built with wxWidgets-3.0 GTK2.
+ 10. fixed incorrect behavior of when Ctrl-Backspace pressed at beginning of a text file OR at zero-width selection in column mode.
+ 11. fixed that cannot select the whole word wraped in different lines by double-click.
+ 12. fixed that triple-click cannot select a whole wrapped line.
+ 13. fixed that files are not keep in hex mode after restart & restore.
+ 14. fixed newline redundance when copying in regular text mode.
+ 15. updated Spanish translation by Carlos Sánchez <carlos1994sanchez[at]gmail.com>.
+ 16. updated Japanese translation by Tilt <tiltstr[at]gmail.com>.
+ 17. updated Simplified Chinese translation.
+ 18. updated Traditional Chinese translation by Vincent_TW.
+ 19. updated Russian translation by Будинов Станислав <stabud[at]yandex.ru>.
+ 20. other minor changes and bug fixes.
+
+wxMEdit v3.0:
+  1. added a killer feature: Inserting Ordered Sequence.
+  2. added new options to display/print bookmark independent of line number.
+  3. added a option whether enable dot matching new-line in regular expression.
+  4. added a feature that show searching message in status bar when Search/Replace Dialog is invisible.
+  5. improved bookmark appearance for displaying and printing.
+  6. improved Tab and EOF mark pattern, make it easy to distinguish Tab mark from space mark.
+  7. fixed that there are too few characters limited in a line with certain word wrap settings.
+  8. fixed that width of list items in Syntax Highlighting Settings Dialog are not updated on resizing.
+  9. fixed not responding when counting/replacing-all any zero-length assertions.
+ 10. updated Unicode block descriptions for Unicode 7.0 (require ICU 54 or higher).
+ 11. added German translation by Ronny Steiner <post[at]sirsteiner.de>.
+ 12. added Polish translation by Adam Massalski <massaada[at]wp.pl>.
  13. updated Simplified Chinese translation.
- 14. other minor changes and bug fixes.
+ 14. updated Spanish translation by Carlos Sánchez <carlos1994sanchez[at]gmail.com>.
+ 15. updated Japanese translation by Tilt <tiltstr[at]gmail.com>.
+ 16. other minor changes and bug fixes.
 
 wxMEdit v2.9.9:
   1. added right-click context menu for each tab.
@@ -106,25 +127,6 @@ wxMEdit v2.9.9:
  17. updated Japanese translation by Tilt <tiltstr[at]gmail.com>.
  18. other minor changes and bug fixes.
 
-wxMEdit v2.9.8:
-  1. added more choices for whether pasting as hex-string in hex-area when editing in hex-mode.
-  2. added new feature: Paste with Overwriting in Hex Area.
-  3. added more common used encoding aliases and show them in Encoding Conversion Dialog.
-  4. added localization support when open homepage and downloads page.
-  5. added Chinese translations support for zh_HK, zh_MO, zh_SG and zh.
-  6. added an option to place configuration files into %APPDATA% directory under Windows.
-  7. made default window size bigger.
-  8. made manual update checking asynchronously as same as automatic update checking.
-  9. improved encoding groups.
- 10. fixed bugs detected by clang-analyzer.
- 11. fixed memory leak warning when debugging finished under Windows.
- 12. updated FreeBSD packaging that switched to pkgng via ports.
- 13. updated Simplified Chinese translation.
- 14. updated Traditional Chinese translation by Vincent_TW.
- 15. updated Spanish translation by Carlos Sánchez <carlos1994sanchez[at]gmail.com>.
- 16. updated Japanese translation by Tilt <tiltstr[at]gmail.com>.
- 17. other minor changes and bug fixes.
-
 See file ChangeLog for more changes.
 
 
@@ -136,8 +138,9 @@ or (at your option) any later version.
 
 Authors:
 ------
-JiaYanwei <wxmedit@gmail.com>        (current maintainer of wxMEdit)
-Alston Chen <madedit@gmail.com>      (creator of MadEdit)
+JiaYanwei <wxmedit[at]gmail.com>          (current maintainer of wxMEdit)
+jerome KASPER <neon.king.fr[at]gmail.com> (current maintainer of wxMEdit)
+Alston Chen <madedit[at]gmail.com>        (creator of MadEdit)
 
 
 Links:
@@ -146,7 +149,6 @@ wxMEdit: http://wxmedit.github.io/
 MadEdit: http://sourceforge.net/projects/madedit/
 wxWidgets: http://www.wxwidgets.org/
 Boost: http://www.boost.org/
-Open Clip Art Library: http://www.openclipart.org/
 ICU: http://site.icu-project.org/
 Bakefile: http://www.bakefile.org/
 Code::Blocks: http://www.codeblocks.org/

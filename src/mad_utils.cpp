@@ -2,7 +2,7 @@
 // vim:         ts=4 sw=4 expandtab
 // Name:        wxm_utils.cpp
 // Description: Utility Functions
-// Copyright:   2013-2015  JiaYanwei   <wxmedit@gmail.com>
+// Copyright:   2013-2019  JiaYanwei   <wxmedit@gmail.com>
 //              2005-2010  Alston Chen <madedit@gmail.com>
 // License:     GPLv3
 ///////////////////////////////////////////////////////////////////////////////
@@ -77,7 +77,7 @@ HtmlColor HtmlColorTable[]=
     { wxT("DarkSlateGray"),        47,79,79 },
     { wxT("DarkTurquoise"),        0,206,209 },
     { wxT("DarkViolet"),           148,0,211 },
-    { wxT("Darkorange"),           255,140,0 },
+    { wxT("DarkOrange"),           255,140,0 },
     { wxT("DeepPink"),             255,20,147 },
     { wxT("DeepSkyBlue"),          0,191,255 },
     { wxT("DimGray"),              105,105,105 },

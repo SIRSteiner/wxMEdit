@@ -1,7 +1,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 // Name:        wxmedit/wxm_lines.h
 // Description: The Text/Data Buffer of wxMEdit
-// Copyright:   2013-2015  JiaYanwei   <wxmedit@gmail.com>
+// Copyright:   2013-2019  JiaYanwei   <wxmedit@gmail.com>
 //              2005-2010  Alston Chen <madedit@gmail.com>
 // License:     GPLv3
 ///////////////////////////////////////////////////////////////////////////////
@@ -10,7 +10,8 @@
 #define _WXM_LINES_H_
 
 #include "../xm/cxx11.h"
-#include "../wxm/line_enc_adapter.h"
+#include "../xm/line_enc_adapter.h"
+#include "../xm/encoding/encoding.h"
 #include "../wxm/def.h"
 
 #ifdef _MSC_VER
@@ -35,18 +36,161 @@
 # pragma warning( pop )
 #endif
 
+#include <unicode/unistr.h>
+using namespace U_ICU_NAMESPACE;
+
+#include <boost/scoped_ptr.hpp>
+
 #include <vector>
 #include <list>
 #include <deque>
 #include <utility>
+#include <exception>
+
+class MadEdit;
+
+namespace wxm
+{
+	struct WXMEncoding;
+	struct InFrameWXMEdit;
+	struct WXMSearcher;
+	struct BraceXPosAdjustor;
+	struct NoWrapData;
+
+	struct NewLineChar
+	{
+		NewLineChar() {}
+		virtual bool IsDefault() const { return false; }
+		virtual wxString Name() const = 0;
+		virtual const wxString& Description() const = 0;
+		virtual wxString wxValue() const = 0;
+		virtual const ucs4string& Value() const = 0;
+		virtual void ValueAppendTo(std::vector<ucs4_t>& vec) const = 0;
+		virtual void Convert0x0D(ucs4_t& ch, std::vector<ucs4_t>& ucs) const = 0;
+		virtual void Convert0x0A(ucs4_t& ch, std::vector<ucs4_t>& ucs) const = 0;
+		virtual std::vector<wxPoint>& PatternPoints(MadEdit* edit) const = 0;
+
+		virtual ~NewLineChar() {}
+	protected:
+		static const wxString MACDescription;
+		static const wxString UNIXDescription;
+		static const wxString DOSDescription;
+		static const wxString NoneDescription;
+
+		static const ucs4string MACValue;
+		static const ucs4string UNIXValue;
+		static const ucs4string DOSValue;
+		static const ucs4string NoneValue;
+	};
+
+	struct NewLineDOS: public NewLineChar
+	{
+		NewLineDOS() {}
+	private:
+		virtual wxString Name() const override { return wxT("DOS"); }
+		virtual const wxString& Description() const override { return DOSDescription; }
+		virtual const ucs4string& Value() const override { return DOSValue; }
+		virtual void Convert0x0D(ucs4_t& ch, std::vector<ucs4_t>& ucs) const override { ucs.push_back(ch); ch = 0x0A; }
+		virtual void Convert0x0A(ucs4_t& ch, std::vector<ucs4_t>& ucs) const override { ucs.push_back(0x0D); }
+		virtual std::vector<wxPoint>& PatternPoints(MadEdit* edit) const override;
+	public:
+		virtual wxString wxValue() const override { return wxT("\r\n"); }
+		virtual void ValueAppendTo(std::vector<ucs4_t>& v) const override { v.push_back(0x0D); v.push_back(0x0A); }
+	};
+
+	struct NewLineUNIX: public NewLineChar
+	{
+		NewLineUNIX() {}
+	private:
+		virtual wxString Name() const override { return wxT("UNIX"); }
+		virtual const wxString& Description() const override { return UNIXDescription; }
+		virtual const ucs4string& Value() const override { return UNIXValue; }
+		virtual void Convert0x0D(ucs4_t& ch, std::vector<ucs4_t>& ucs) const override { ch = 0x0A; }
+		virtual void Convert0x0A(ucs4_t& ch, std::vector<ucs4_t>& ucs) const override {}
+		virtual std::vector<wxPoint>& PatternPoints(MadEdit* edit) const override;
+	public:
+		virtual wxString wxValue() const override { return wxT("\n"); }
+		virtual void ValueAppendTo(std::vector<ucs4_t>& v) const override { v.push_back(0x0A); }
+	};
+
+	struct NewLineDefault : public
+#ifdef __WXMSW__
+		NewLineDOS
+#else
+		NewLineUNIX
+#endif
+	{
+		NewLineDefault() {}
+	private:
+		virtual bool IsDefault() const override { return true; }
+	};
+
+	struct NewLineMAC: public NewLineChar
+	{
+		NewLineMAC() {}
+	private:
+		virtual wxString Name() const override { return wxT("MAC"); }
+		virtual const wxString& Description() const override { return MACDescription; }
+		virtual const ucs4string& Value() const override { return MACValue; }
+		virtual void Convert0x0D(ucs4_t& ch, std::vector<ucs4_t>& ucs) const override {}
+		virtual void Convert0x0A(ucs4_t& ch, std::vector<ucs4_t>& ucs) const override { ch = 0x0D; }
+		virtual std::vector<wxPoint>& PatternPoints(MadEdit* edit) const override;
+	public:
+		virtual wxString wxValue() const override { return wxT("\r"); }
+		virtual void ValueAppendTo(std::vector<ucs4_t>& v) const override { v.push_back(0x0D); }
+	};
+
+	struct NewLineNone: public NewLineChar
+	{
+		NewLineNone() {}
+	private:
+		virtual wxString Name() const override { return wxT("NoEOL"); }
+		virtual const wxString& Description() const override { return NoneDescription; }
+		virtual const ucs4string& Value() const override { return NoneValue; }
+		virtual void Convert0x0D(ucs4_t& ch, std::vector<ucs4_t>& ucs) const override {}
+		virtual void Convert0x0A(ucs4_t& ch, std::vector<ucs4_t>& ucs) const override { ch = 0; }
+		virtual wxString wxValue() const override { return wxT(""); }
+		virtual void ValueAppendTo(std::vector<ucs4_t>& v) const override {}
+		virtual std::vector<wxPoint>& PatternPoints(MadEdit* edit) const override;
+	};
+
+	extern const NewLineDefault g_nl_default;
+	extern const NewLineDOS     g_nl_dos;
+	extern const NewLineUNIX    g_nl_unix;
+	extern const NewLineMAC     g_nl_mac;
+	extern const NewLineNone    g_nl_none;
+
+	struct ExtUCQueue
+	{
+		xm::UCQueue q;
+
+		ExtUCQueue() : u16idx(0) {}
+		void IncIndex()
+		{
+			u16idx += (q.back().ucs4() > 0x10000) ? 2 : 1;
+		}
+		int32_t U16Index() { return u16idx; }
+		void pop_front() { q.pop_front(); }
+		xm::CharUnit& back() { return q.back(); }
+		xm::CharUnit& front() { return q.front(); }
+		xm::CharUnit& operator[] (size_t idx) { return q[idx]; }
+		bool empty() { return q.empty(); }
+		size_t size() { return q.size(); }
+		xm::UCQueue::iterator begin() { return q.begin(); }
+		void clear()
+		{
+			u16idx = 0;
+			q.clear();
+		}
+	private:
+		int32_t u16idx;
+	};
+} // namespace wxm
 
 using std::vector;
 using std::list;
 using std::deque;
 using std::pair;
-
-#include "ucs4_t.h"
-#include "wxm_deque.hpp"
 
 //===========================================================================
 // MadFileNameIsUTF8, MadDirExists, MadConvFileName_WC2MB_UseLibc
@@ -249,23 +393,19 @@ struct BracePairIndex
 
 typedef vector < MadRowIndex >::iterator MadRowIndexIterator;
 
-namespace wxm
-{
-struct WXMEncoding;
-}
-
 struct MadLine
 {
-    MadBlockVector          m_Blocks;
+    xm::BlockVector         m_Blocks;
     vector <MadRowIndex>    m_RowIndices;
     wxFileOffset            m_Size;         // data size, include m_NewLineSize
-    wxByte                  m_NewLineSize;  // ANSI: "0D,0A" , UNICODE: "0D,00,0A,00"
+    wxByte                  m_NewLineSize;
+    const wxm::NewLineChar* m_nl;
 
     MadLineState            m_State;
 
     vector <BracePairIndex> m_BracePairIndices;
 
-    MadLine():m_Size(0), m_NewLineSize(0)
+    MadLine():m_Size(0), m_NewLineSize(0), m_nl(&wxm::g_nl_none)
     {
     }
     void Reset();
@@ -273,14 +413,14 @@ struct MadLine
     bool IsEmpty() { return m_Size == 0; }
 
     // if false return 0 ; else return 0x0D or 0x0A
-    ucs4_t LastUCharIsNewLine(wxm::WXMEncoding *encoding);
-    bool FirstUCharIs0x0A(wxm::WXMEncoding *encoding);
+    ucs4_t LastUCharIsNewLine(xm::Encoding *encoding);
+    bool FirstUCharIs0x0A(xm::Encoding *encoding);
 
     wxByte Get(wxFileOffset pos)                            // get 1 byte
     {
         wxASSERT(pos >= 0 && pos < m_Size);
 
-        MadBlockIterator biter = m_Blocks.begin();
+        xm::BlockIterator biter = m_Blocks.begin();
         if(pos >= biter->m_Size)
             do
             {
@@ -294,11 +434,11 @@ struct MadLine
 
     void Get(wxFileOffset pos, wxByte *buf, size_t size)    // get n bytes
     {
-        wxASSERT(pos >= 0 && pos + size <= m_Size);
+        wxASSERT(pos >= 0 && pos + (wxFileOffset)size <= m_Size);
         if (size == 0)
             return;
 
-        MadBlockIterator biter = m_Blocks.begin();
+        xm::BlockIterator biter = m_Blocks.begin();
         if(pos >= biter->m_Size)
         {
             do
@@ -331,11 +471,9 @@ struct MadLine
 
 //==================================================
 
-typedef list<MadLine>::iterator         MadLineIterator;
-//typedef deque<MadUCPair>             MadUCQueue;
-//typedef deque<MadUCPair>::iterator   MadUCQueueIterator;
-typedef MadDeque<MadUCPair>::iterator   MadUCQueueIterator;
-typedef vector<wxString>::iterator      MadStringIterator;
+typedef xm::UCQueue::iterator      UCQueueIterator;
+typedef list<MadLine>::iterator    MadLineIterator;
+typedef vector<wxString>::iterator MadStringIterator;
 
 class MadLineList : public list <MadLine>
 {
@@ -366,13 +504,9 @@ typedef list<MadLineIterator>::iterator  MadBookmarkIterator;
 
 class MadEdit;
 class MadSyntax;
-namespace wxm
-{
-    struct InFrameWXMEdit;
-    struct WXMSearcher;
-}
+struct MadSyntaxRange;
 
-class MadLines: public wxm::UChar32BytesMapper
+class MadLines: public xm::UChar32BytesMapper
 {
 private:
     friend class MadEdit;
@@ -382,7 +516,7 @@ private:
 
     MadEdit       *m_MadEdit;
     MadSyntax     *m_Syntax;
-    wxm::WXMEncoding   *m_Encoding;
+    xm::Encoding  *m_Encoding;
 
     MadLineList m_LineList;
     size_t m_LineCount, m_RowCount;         // line counts
@@ -412,14 +546,21 @@ private:
     MadLineState Reformat(MadLineIterator iter);
     // reformat lines in [first,last]
     size_t Reformat(MadLineIterator first, MadLineIterator last);
+
+    void DoCheckState(MadLineIterator iter, wxm::ExtUCQueue& ucqueue, xm::CharUnit& cu, ucs4_t prevuc, ucs4_t& lastuc, int& notSpaceCount, size_t& eatUCharCount, int& index, size_t& length, size_t bracepos, int*& bracexpos, int& bracexpos_count, MadLineState& state, MadStringIterator& sit, MadStringIterator& sitend, bool BeginOfLine, MadSyntaxRange* srange);
+
     // Recount all lines' width
     void RecountLineWidth(void);
+
+    void DoWordWrap(MadLineIterator iter, wxm::BraceXPosAdjustor& brxpos_adj, bool word_canmove, bool canbreak, MadRowIndex& rowidx, size_t& rowlen, size_t& rowidx_idx, wxm::NoWrapData& nowrap);
+    void NoWrapAccumulate(wxm::NoWrapData& nowrap, int ucwidth, size_t uclen, bool canbreak);
+    UnicodeString DumpUTF16String(MadLineIterator iter);
 
     // append lit2 after lit1
     void Append(const MadLineIterator &lit1, const MadLineIterator &lit2);
 
     // write to fd or file if which one isn't Null
-    void WriteBlockToData(MadOutData *fd, const MadBlockIterator &bit);
+    void WriteBlockToData(MadOutData *fd, const xm::BlockIterator &bit);
     void WriteToFile(wxFile &file, MadFileData *oldfd, MadFileData *newfd);
 
     wxFileOffset GetMaxTempSize(const wxString &filename);
@@ -430,8 +571,8 @@ public:
     MadLines(MadEdit *madedit);
     virtual ~MadLines();
 
-    bool LoadFromFile(const wxString &filename, const wxString &encoding = wxEmptyString);
-    bool SaveToFile(const wxString &filename, const wxString &tempdir);
+    bool LoadFromFile(const wxString& filename, const std::wstring& encoding=wxEmptyString, bool hexmode=false);
+    bool SaveToFile(const wxString& filename, const wxString& tempdir);
     wxFileOffset GetSize() { return m_Size; }
 
 private:  // NextUChar()
@@ -449,43 +590,50 @@ private:  // NextUChar()
 
     bool m_manual;
 
-    virtual void MoveUChar32Bytes(MadUCQueue &ucqueue, ucs4_t uc, size_t len) override;
-    virtual wxByte* BufferLoadBytes(wxFileOffset& rest, size_t buf_len) override;
+    UErrorCode m_line_bi_status;
+    boost::scoped_ptr<BreakIterator> m_line_bi;
+
+    virtual void MoveUChar32Bytes(xm::UCQueue &ucqueue, ucs4_t uc, size_t len) override;
+    virtual ubyte* BufferLoadBytes(int64_t& rest, size_t buf_len) override;
 
     bool NextUCharIs0x0A(void);
 
     void DetectSyntax(const wxString &filename);
 
-    bool PresetFileEncoding(const wxString& encoding, const wxByte* buf, size_t sz);
-    void SetFileEncoding(const wxString& encoding, const wxString& defaultenc, 
+    bool PresetFileEncoding(const std::wstring& encoding, const wxByte* buf, size_t sz);
+    void SetFileEncoding(const std::wstring& encoding, const std::wstring& defaultenc,
                          const wxByte* buf, size_t sz, bool skip_utf8);
 
-    int FindStringCase(MadUCQueue &ucqueue, MadStringIterator begin,
+    int FindStringCase(wxm::ExtUCQueue &ucqueue, MadStringIterator begin,
                    const MadStringIterator &end, size_t &len);
 
     // the [begin,end) iter must be lower case
-    int FindStringNoCase(MadUCQueue &ucqueue, MadStringIterator begin,
+    int FindStringNoCase(wxm::ExtUCQueue &ucqueue, MadStringIterator begin,
                    const MadStringIterator &end, size_t &len);
 
-    typedef int (MadLines::*FindStringPtr)(MadUCQueue &ucqueue,
+    typedef int (MadLines::*FindStringPtr)(wxm::ExtUCQueue &ucqueue,
                 MadStringIterator begin, const MadStringIterator &end, size_t &len);
 
     FindStringPtr FindString;
 
 public:
     void SetManual(bool manual) { m_manual = true; }
-    void SetEncoding(wxm::WXMEncoding *encoding);
-
-    // if no newline return 0 ; else return 0x0D or 0x0A or 0x0D+0x0A (=0x17)
-    ucs4_t GetNewLine(const MadLineIterator &iter);
+    void SetEncoding(xm::Encoding *encoding);
 
     void InitNextUChar(const MadLineIterator &iter, const wxFileOffset pos);
 
-    bool NextUChar(MadUCQueue &ucqueue);
+    bool NextUChar(xm::UCQueue &ucqueue);
+    bool NextUChar(wxm::ExtUCQueue &ucq)
+    {
+        bool r = NextUChar(ucq.q);
+        if (r)
+            ucq.IncIndex();
+        return r;
+    }
 
     // should not frequently use this, it's slowly
-    // if no, return MadUCPair(0, 0)
-    MadUCPair PreviousUChar(/*IN_OUT*/MadLineIterator &lit, /*IN_OUT*/wxFileOffset &linepos);
+    // if no, return xm::CharUnit(0, 0)
+    xm::CharUnit PreviousUChar(/*IN_OUT*/MadLineIterator &lit, /*IN_OUT*/wxFileOffset &linepos);
 };
 
 

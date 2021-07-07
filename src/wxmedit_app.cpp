@@ -2,7 +2,7 @@
 // vim:         ts=4 sw=4 expandtab
 // Name:        wxmedit_app.cpp
 // Description:
-// Copyright:   2013-2015  JiaYanwei   <wxmedit@gmail.com>
+// Copyright:   2013-2019  JiaYanwei   <wxmedit@gmail.com>
 //              2005-2010  Alston Chen <madedit@gmail.com>
 // License:     GPLv3
 ///////////////////////////////////////////////////////////////////////////////
@@ -54,6 +54,7 @@ const wxChar *g_LanguageString[]=
     wxT("\u7B80\u4F53\u4E2D\u6587 (Chinese Simplified)"),
     wxT("\u6B63\u9AD4\u4E2D\u6587 (Chinese Traditional)"),
     wxT("English"),
+    wxT("Fran\u00E7ais (French)"),
     wxT("Deutsch (German)"),
     wxT("Italiano (Italian)"),
     wxT("\u65E5\u672C\u8A9E (Japanese)"),
@@ -67,6 +68,7 @@ int g_LanguageValue[]=
     wxLANGUAGE_CHINESE_SIMPLIFIED,
     wxLANGUAGE_CHINESE_TRADITIONAL,
     wxLANGUAGE_ENGLISH_US,
+	wxLANGUAGE_FRENCH,
     wxLANGUAGE_GERMAN,
     wxLANGUAGE_ITALIAN,
     wxLANGUAGE_JAPANESE,
@@ -138,7 +140,7 @@ void send_message(Window madedit_win, const wxString &msg)
     Window mwin = XCreateSimpleWindow(g_Display, DefaultRootWindow(g_Display),
                     0,0,90,90,1,0,0);
 
-    const wxCharBuffer data_utf8 = wxConvUTF8.cWX2MB( msg );
+    const wxCharBuffer data_utf8 = wxConvUTF8.cWX2MB( msg.wc_str() );
     size_t datalen_utf8 = strlen(data_utf8);
 
     XChangeProperty(g_Display, mwin , g_MadEdit_atom, XA_STRING, 8,
@@ -195,7 +197,7 @@ bool OpenFilesInPrevInst(const wxString& flist)
     if(GetLastError() != ERROR_ALREADY_EXISTS)
         return false;
 
-	const wxChar wxCanvasClassNameNR[] = wxT("wxWindowClassNR"); // class name of MadEditFrame
+    const wxChar wxCanvasClassNameNR[] = wxT("wxWindowClassNR"); // class name of MadEditFrame
     wxChar title[256]={0};
     HWND prevapp = ::FindWindowEx(NULL, NULL, wxCanvasClassNameNR, nullptr);
     for(;;)                // find wxCanvasClassNameNR
@@ -241,16 +243,16 @@ bool OpenFilesInPrevInst(const wxString& flist)
     g_DoNotSaveSettings = true;
     DeleteConfig();
 
-	return true;
+    return true;
 #elif defined(__WXGTK__)
-    g_Display=GDK_DISPLAY();
+    g_Display= gdk_x11_get_default_xdisplay();
     g_MadEdit_atom = XInternAtom(g_Display, "g_wxMEdit_atom", False);
     Window madedit_win;
 
     if ((madedit_win=XGetSelectionOwner(g_Display, g_MadEdit_atom)) == None)
         return false;
 
-	send_message(madedit_win, flist);
+    send_message(madedit_win, flist);
 
     g_DoNotSaveSettings = true;
     DeleteConfig();
@@ -262,11 +264,11 @@ bool OpenFilesInPrevInst(const wxString& flist)
 
 bool MadEditApp::OnInit()
 {
-    wxm::WXMEncodingManager::PreInit();
+    xm::EncodingManager::PreInit();
 
     xm::RemoteAccessInit();
 
-	wxm::AppPath::Instance().Init(GetAppName());
+    wxm::AppPath::Instance().Init(GetAppName());
 
     // parse commandline to filelist
     wxm::FileList filelist;
@@ -278,8 +280,8 @@ bool MadEditApp::OnInit()
     }
 
     // init wxConfig
-	wxFileConfig *cfg=new wxFileConfig(wxEmptyString, wxEmptyString, wxm::AppPath::Instance().ConfigPath(), 
-	                                   wxEmptyString, wxCONFIG_USE_RELATIVE_PATH|wxCONFIG_USE_NO_ESCAPE_CHARACTERS);
+    wxFileConfig *cfg=new wxFileConfig(wxEmptyString, wxEmptyString, wxm::AppPath::Instance().ConfigPath(), 
+                                       wxEmptyString, wxCONFIG_USE_RELATIVE_PATH|wxCONFIG_USE_NO_ESCAPE_CHARACTERS);
     cfg->SetExpandEnvVars(false);
     cfg->SetRecordDefaults(true);
     wxFileConfig::Set(cfg);
@@ -387,11 +389,18 @@ bool MadEditApp::OnInit()
     myFrame->Show(true);
 
 
-#if defined(__WXGTK__) && wxMAJOR_VERSION == 2
+#if defined(__WXGTK__)
     if(bSingleInstance)
     {
-        GtkPizza *pizza = GTK_PIZZA(myFrame->m_mainWidget);
-        Window win=GDK_WINDOW_XWINDOW(pizza->bin_window);
+# if wxMAJOR_VERSION == 2
+
+        GtkPizza* pizza = GTK_PIZZA(myFrame->m_mainWidget);
+        GdkWindow* gwin = pizza->bin_window;
+# else
+        GtkWidget* widget = myFrame->GetHandle();
+        GdkWindow* gwin = gtk_widget_get_window(widget);
+# endif
+        Window win = GDK_WINDOW_XID(gwin);
         XSetSelectionOwner(g_Display, g_MadEdit_atom, win, CurrentTime);
         gdk_window_add_filter(nullptr, my_gdk_filter, nullptr);
     }

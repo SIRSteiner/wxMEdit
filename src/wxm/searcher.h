@@ -2,7 +2,7 @@
 // vim:         sw=4 ts=4
 // Name:        wxm/searcher.h
 // Description: wxMEdit Searching and Replacing Functions
-// Copyright:   2013-2015  JiaYanwei   <wxmedit@gmail.com>
+// Copyright:   2013-2019  JiaYanwei   <wxmedit@gmail.com>
 //              2005-2010  Alston Chen <madedit@gmail.com>
 // License:     GPLv3
 ///////////////////////////////////////////////////////////////////////////////
@@ -10,7 +10,6 @@
 #ifndef _WXM_SEARCHER_H_
 #define _WXM_SEARCHER_H_
 
-#include "../wxmedit/ucs4_t.h"
 #include "../xm/cxx11.h"
 #include "def.h"
 

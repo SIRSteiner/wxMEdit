@@ -2,7 +2,7 @@
 // vim:         ts=4 sw=4 expandtab
 // Name:        wxmedit/wxmedit.h
 // Description: Main Edit Component of wxMEdit
-// Copyright:   2013-2015  JiaYanwei   <wxmedit@gmail.com>
+// Copyright:   2013-2019  JiaYanwei   <wxmedit@gmail.com>
 //              2005-2010  Alston Chen <madedit@gmail.com>
 // License:     GPLv3
 ///////////////////////////////////////////////////////////////////////////////
@@ -34,14 +34,18 @@
 
 #include "wxm_lines.h"
 #include "wxmedit_command.h"
-#include "../wxm/encoding/encoding.h"
+#include "../xm/encoding/encoding.h"
 #include "wxm_syntax.h"
 #include "wxm_undo.h"
-#include "ucs4_t.h"
 
 #include <wx/confbase.h>
 
+#include <unicode/brkiter.h>
+using U_ICU_NAMESPACE::BreakIterator;
+
+#include <boost/shared_ptr.hpp>
 #include <string>
+#include <algorithm>
 
 enum { ID_VSCROLLBAR=19876, ID_HSCROLLBAR };
 
@@ -51,14 +55,14 @@ namespace wxm
 {
     struct WordCountData
     {
-        int bytes;
-        int words;
-        int chars;
-        int spaces;
-        int controls;
-        int fullwidths;
-        int ambws;
-        int lines;
+        size_t bytes;
+		size_t words;
+		size_t chars;
+		size_t spaces;
+		size_t controls;
+		size_t fullwidths;
+		size_t ambws;
+		size_t lines;
         wxArrayString detail;
 
         WordCountData()
@@ -66,79 +70,6 @@ namespace wxm
             , controls(0), fullwidths(0), ambws(0), lines(0)
         {}
     };
-
-    struct NewLineChar
-    {
-        virtual bool IsDefault() const { return false; }
-        virtual wxString Name() const = 0;
-        virtual const wxString& Description() const = 0;
-        virtual wxString wxValue() const = 0;
-        virtual const ucs4string& Value() const = 0;
-        virtual void ValueAppendTo(std::vector<ucs4_t>& vec) const = 0;
-        virtual void Convert0x0D(ucs4_t& ch, std::vector<ucs4_t>& ucs) const = 0;
-        virtual void Convert0x0A(ucs4_t& ch, std::vector<ucs4_t>& ucs) const = 0;
-
-        virtual ~NewLineChar() {}
-    protected:
-        static const wxString MACDescription;
-        static const wxString UNIXDescription;
-        static const wxString DOSDescription;
-
-        static const ucs4string MACValue;
-        static const ucs4string UNIXValue;
-        static const ucs4string DOSValue;
-    };
-
-    class NewLineDOS : public NewLineChar
-    {
-        virtual wxString Name() const override { return wxT("DOS"); }
-        virtual const wxString& Description() const override { return DOSDescription; }
-        virtual const ucs4string& Value() const override { return DOSValue; }
-        virtual void Convert0x0D(ucs4_t& ch, std::vector<ucs4_t>& ucs) const override { ucs.push_back(ch); ch = 0x0A; }
-        virtual void Convert0x0A(ucs4_t& ch, std::vector<ucs4_t>& ucs) const override { ucs.push_back(0x0D); }
-    public:
-        virtual wxString wxValue() const override { return wxT("\n"); }
-        virtual void ValueAppendTo(std::vector<ucs4_t>& v) const override { v.push_back(0x0D); v.push_back(0x0A); }
-    };
-
-    class NewLineUNIX : public NewLineChar
-    {
-        virtual wxString Name() const override { return wxT("UNIX"); }
-        virtual const wxString& Description() const override { return UNIXDescription; }
-        virtual const ucs4string& Value() const override { return UNIXValue; }
-        virtual void Convert0x0D(ucs4_t& ch, std::vector<ucs4_t>& ucs) const override { ch = 0x0A; }
-        virtual void Convert0x0A(ucs4_t& ch, std::vector<ucs4_t>& ucs) const override {}
-    public:
-        virtual wxString wxValue() const override { return wxT("\n"); }
-        virtual void ValueAppendTo(std::vector<ucs4_t>& v) const override { v.push_back(0x0A); }
-    };
-
-    class NewLineDefault : public
-#ifdef __WXMSW__
-        NewLineDOS
-#else
-        NewLineUNIX
-#endif
-    {
-        virtual bool IsDefault() const override { return true; }
-    };
-
-    class NewLineMAC : public NewLineChar
-    {
-        virtual wxString Name() const override { return wxT("MAC"); }
-        virtual const wxString& Description() const override { return MACDescription; }
-        virtual const ucs4string& Value() const override { return MACValue; }
-        virtual void Convert0x0D(ucs4_t& ch, std::vector<ucs4_t>& ucs) const override {}
-        virtual void Convert0x0A(ucs4_t& ch, std::vector<ucs4_t>& ucs) const override { ch = 0x0D; }
-    public:
-        virtual wxString wxValue() const override { return wxT("\n"); }
-        virtual void ValueAppendTo(std::vector<ucs4_t>& v) const override { v.push_back(0x0D); }
-    };
-
-    extern const NewLineDefault g_nl_default;
-    extern const NewLineDOS     g_nl_dos;
-    extern const NewLineUNIX    g_nl_unix;
-    extern const NewLineMAC     g_nl_mac;
 } // namespace wxm
 
 //==============================================================================
@@ -291,12 +222,13 @@ public:
 
 private:
     friend class MadSyntax;
-    friend struct wxm::WXMEncoding;
+    friend struct xm::Encoding;
     friend class MadLines;
     friend class MadMouseMotionTimer;
     friend struct wxm::WXMSearcher;
     friend struct wxm::TextSearcher;
     friend struct wxm::HexSearcher;
+    friend struct wxm::InFrameWXMEdit;
 
     static int      ms_Count; // the count of MadEdit
 
@@ -310,7 +242,7 @@ protected:
     MadLines        *m_Lines;
 private:
     MadSyntax       *m_Syntax;
-    wxm::WXMEncoding     *m_Encoding;
+    xm::Encoding *m_Encoding;
 
     MadUndoBuffer   *m_UndoBuffer;
     MadUndo         *m_SavePoint;
@@ -324,13 +256,14 @@ private:
     wxBitmap        *m_ClientBitmap, *m_MarkBitmap;
     int             m_LastPaintBitmap;// 0:client, 1:mark
 
-    std::vector<wxPoint> m_space_points, m_eof_points;
-    std::vector<wxPoint> m_cr_points, m_lf_points, m_crlf_points;
+    std::vector<wxPoint> m_space_points;
+public:
+    std::vector<wxPoint> m_cr_points, m_lf_points, m_crlf_points, m_eof_points;
 
 protected:
     MadCaretPos     m_CaretPos;
 private:
-    MadUCQueue      m_ActiveRowUChars;  // ucs4 char cache of active row
+    xm::UCQueue      m_ActiveRowUChars;  // ucs4 char cache of active row
     vector<int>     m_ActiveRowWidths;  // width cache of active row
     int             m_CaretRowUCharPos; // ucs4 char pos of active row
     int             m_LastCaretXPos;    // when move caret up/down, use this to calc the nearest xpos
@@ -344,6 +277,7 @@ private:
 
 protected:
     bool            m_Selection;
+
 private:
     MadCaretPos     m_SelectionPos1, m_SelectionPos2;
     MadCaretPos     *m_SelectionBegin, *m_SelectionEnd;
@@ -356,6 +290,25 @@ public:
     {
         return m_TextFontSpaceCharWidth;
     }
+
+    int GetTabMaxCharFontWidth()
+    {
+        return m_TabColumns * GetSpaceCharFontWidth();
+    }
+
+    int CalcTabWidth(int rowwidth, int xpos)
+    {
+        const int tabwidth = GetTabMaxCharFontWidth();
+        const int normalwidth = tabwidth - (xpos % tabwidth);
+        const int fitwidth = std::max(rowwidth - xpos, GetSpaceCharFontWidth());
+        return std::min(normalwidth, fitwidth);
+    }
+
+    int GetUCharTextFontWidth(ucs4_t uc, int rowwidth, int nowxpos)
+    {
+        return (uc == 0x09)? CalcTabWidth(rowwidth, nowxpos) : GetUCharWidth(uc);
+    }
+
 private:
     wxFont          *m_TextFont; // readonly, set it at SetTextFont()
     int             m_TextFontHeight;
@@ -483,6 +436,9 @@ private:
 
     bool m_mouse_in_window;
 
+    UErrorCode m_word_bi_status;
+    boost::shared_ptr<BreakIterator> m_word_bi;
+
 protected:
 
     // GetLineByXXX() will get the wanted line from the nearest position(begin of lines, end of lines, or m_ValidPos)
@@ -507,20 +463,20 @@ protected:
     // IN: caretPos.iter linepos subrowid ; not used: pos lineid rowid
     // UPDATE:caretPos.xpos extraspaces and ucharQueue widthArray ucharPos
     void UpdateCaret(MadCaretPos &caretPos,
-                     MadUCQueue &ucharQueue, vector<int> &widthArray,
+                     xm::UCQueue &ucharQueue, vector<int> &widthArray,
                      int &ucharPos);
 
     // IN: caretPos.pos
     // UPDATE: caretPos.all and ucharQueue widthArray ucharPos
     void UpdateCaretByPos(MadCaretPos &caretPos,
-                          MadUCQueue &ucharQueue, vector<int> &widthArray,
+                          xm::UCQueue &ucharQueue, vector<int> &widthArray,
                           int &ucharPos);
 
     // caretPos.pos linepos must be begin of row
     // IN: caretPos.iter subrowid ; not used: lineid rowid
     // UPDATE:caretPos.xpos pos linepos extraspaces and ucharQueue widthArray ucharPos
     void UpdateCaretByXPos(int xPos, MadCaretPos &caretPos,
-                           MadUCQueue &ucharQueue, vector<int> &widthArray,
+                           xm::UCQueue &ucharQueue, vector<int> &widthArray,
                            int &ucharPos);
 
     // update the two SelectionPos by their .pos
@@ -583,17 +539,18 @@ protected:
     void GetRawBytesFromClipboard(vector<char>& cs);
 
     void HexModeToTextMode(MadEditMode mode);
+    virtual bool ManuallyCancelHexToText() = 0;
 
     void AppearCaret(bool middle = false); // make the caret showing within the client area
     void ShowCaret(bool show);
     void DisplayCaret(bool moveonly); // show caret immediately
 
-    void CopyFileDataToMem(MadBlockIterator begin, MadBlockIterator end);
+    void CopyFileDataToMem(xm::BlockIterator begin, xm::BlockIterator end);
 
     // return the line-iterator and and lineid (if it is not nullptr) by the pos
     MadLineIterator DeleteInsertData(wxFileOffset pos,
-                                     wxFileOffset delsize, /*OUT*/ MadBlockVector *deldata,
-                                     wxFileOffset inssize, /*IN*/  MadBlockVector *insdata,
+                                     wxFileOffset delsize, /*OUT*/ xm::BlockVector *deldata,
+                                     wxFileOffset inssize, /*IN*/  xm::BlockVector *insdata,
                                      /*OUT*/ int *lineid = nullptr);
 
     void UCStoBlock(const ucs4_t *ucs, size_t count, MadBlock & block);
@@ -640,6 +597,11 @@ protected:
     void FindLeftBrace(/*IN_OUT*/int &rowid, MadLineIterator lit, wxFileOffset linepos, BracePairIndex &bpi);
     void FindRightBrace(/*IN_OUT*/int &rowid, MadLineIterator lit, wxFileOffset linepos, BracePairIndex &bpi);
     void FindBracePairUnderCaretPos();
+
+    void CaretPosUpdate();
+    void ForwardNthUChars(MadLineIterator& lit, int32_t n, wxFileOffset lineendpos);
+    void DoPrevWord();
+    void DoNextWord();
 
     // update mouse cursor by the mouse position
     void UpdateCursor(int mouse_x, int mouse_y);
@@ -711,7 +673,7 @@ protected:
     WXLRESULT MSWWindowProc(WXUINT message, WXWPARAM wParam, WXLPARAM lParam);
 #endif
 
-#ifdef __WXGTK__
+#if defined(__WXGTK__) && wxMAJOR_VERSION == 2
     void ConnectToFixedKeyPressHandler();
 #endif
 
@@ -753,9 +715,9 @@ public: // basic functions
     void ApplySyntaxAttributes(MadSyntax *syn, bool matchTitle);
     void LoadDefaultSyntaxScheme() { MadSyntax::LoadScheme(wxT("Default"), m_Syntax); }
 
-    void SetEncoding(const wxString &encname);
-    wxString GetEncodingName() { return m_Encoding->GetName(); }
-    wxString GetEncodingDescription() { return m_Encoding->GetDescription(); }
+    void SetEncoding(const std::wstring & encname);
+    wxString GetEncodingName() { return m_Encoding->GetName().c_str(); }
+    wxString GetEncodingDescription() { return m_Encoding->GetDescription().c_str(); }
     bool IsUnicodeFile() { return m_Encoding->IsUnicodeEncoding(); }
 
     bool GetRecordCaretMovements() { return m_RecordCaretMovements; }
@@ -887,7 +849,6 @@ public: // basic functions
     int GetMaxWordWrapWidth();
     int GetUCharWidth(ucs4_t uc);
     int GetHexUCharWidth(ucs4_t uc);
-    int GetUCharType(ucs4_t uc);
 
     // all are zero-based
     void GetCaretPosition(int &line, int &subrow, wxFileOffset &column);
@@ -906,6 +867,7 @@ public: // basic functions
 
     int GetLineCount() { return int(m_Lines->m_LineCount); }
 
+    void AppendNewLine(vector<ucs4_t>& newtext, const MadLineIterator& lit, size_t firstrow, size_t lastrow, size_t subrowid);
     void ConvertNewLine(const wxm::NewLineChar& nl);
     void SetInsertNewLine(const wxm::NewLineChar& nl)
     {
@@ -976,11 +938,8 @@ public: // basic functions
 
     virtual wxm::WXMSearcher* Searcher(bool inhex, bool use_regex) = 0;
 
-    bool LoadFromFile(const wxString &filename, const wxString &encoding = wxEmptyString);
-    bool SaveToFile(const wxString &filename);
-    bool Reload();
-    // if the file is modified by another app, reload it.
-    bool ReloadByModificationTime();
+    bool LoadFromFile(const wxString& filename, const std::wstring& encoding=wxEmptyString, bool hexmode=false);
+    bool SaveToFile(const wxString& filename);
 
     struct WXMLocations
     {
@@ -999,7 +958,7 @@ public: // basic functions
     int Save(bool ask, const wxString &title, bool saveas);
 
 public: // advanced functions
-    void ConvertEncoding(const wxString &newenc, MadConvertEncodingFlag flag);
+    void ConvertEncoding(const std::wstring & newenc, MadConvertEncodingFlag flag);
     void ConvertChinese(MadConvertEncodingFlag flag);
 
     bool HasBOM()
@@ -1067,7 +1026,6 @@ private:
     virtual void SetClientSizeData(int w, int h);
     void UpdateClientBitmap();
 
-
     static wxMilliClock_t GetTripleClickInterval();
 
 public: // fix wxDC.Blit(wxINVERT) not work on some old versions of VMWare
@@ -1078,7 +1036,6 @@ public: // fix wxDC.Blit(wxINVERT) not work on some old versions of VMWare
 };
 
 wxString FixUTF8ToWCS(const wxString &str);
-wxString FormatThousands(const wxString& s);
 bool StrToInt64(wxString str, wxInt64 &i64);
 
 #endif

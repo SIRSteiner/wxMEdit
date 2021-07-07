@@ -2,7 +2,7 @@
 // vim:         ts=4 sw=4
 // Name:        wxm/edit/simple.h
 // Description: Simple wxMEdit Implementations
-// Copyright:   2015  JiaYanwei   <wxmedit@gmail.com>
+// Copyright:   2015-2019  JiaYanwei   <wxmedit@gmail.com>
 // License:     GPLv3
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -42,6 +42,7 @@ private:
 	virtual void PaintLineNumberArea(const wxColor & bgcolor, wxDC * dc, const wxRect& rect, bool is_trailing_subrow,
 		MadLineIterator lineiter, int lineid, int text_top) override {}
 	virtual WXMSearcher* Searcher(bool inhex, bool use_regex) override { return nullptr; }
+	virtual bool ManuallyCancelHexToText() override { return false; }
 };
 
 struct InFrameWXMEdit;

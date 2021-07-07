@@ -2,16 +2,18 @@
 // vim:         ts=4 sw=4
 // Name:        wxm/utils.cpp
 // Description: Utilities
-// Copyright:   2013-2015  JiaYanwei   <wxmedit@gmail.com>
+// Copyright:   2013-2019  JiaYanwei   <wxmedit@gmail.com>
 // License:     GPLv3
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "utils.h"
+#include "../xm/encoding/external.h"
 #include "../xm/cxx11.h"
-#include "encoding/encoding.h"
+#include "../xm/encoding/encoding.h"
 #include "../mad_utils.h"
 #include "../wxmedit/wxmedit.h"
 #include "../xm/uutils.h"
+#include "../xm/line_enc_adapter.h"
 
 #ifdef _MSC_VER
 # pragma warning( push )
@@ -30,6 +32,7 @@
 #include <wx/file.h>
 #include <wx/wfstream.h>
 #include <wx/fileconf.h>
+#include <wx/log.h>
 // disable 4996 }
 #ifdef _MSC_VER
 # pragma warning( pop )
@@ -155,7 +158,7 @@ void OpenOriginalURL(const wxString& url)
 
 wxString WXMLanguageQuery()
 {
-	icu::Locale loc;
+	U_ICU_NAMESPACE::Locale loc;
 	std::string lang = loc.getLanguage();
 	std::string ctry = loc.getCountry();
 
@@ -164,7 +167,7 @@ wxString WXMLanguageQuery()
 
 void OpenURL(const wxString& url)
 {
-	if (! boost::algorithm::istarts_with(url, "http://wxmedit.github.io/"))
+	if (! boost::algorithm::istarts_with(url.wc_str(), "http://wxmedit.github.io/"))
 		return OpenOriginalURL(url);
 
 	static wxString lang_q = WXMLanguageQuery();
@@ -174,9 +177,9 @@ void OpenURL(const wxString& url)
 
 void SetDefaultMonoFont(wxWindow* win)
 {
-	const wxString fontname = wxm::WXMEncodingManager::Instance().GetSystemEncoding()->GetFontName();
+	const wxString fontname = xm::EncodingManager::Instance().GetSystemEncoding()->GetFontName().c_str();
 	int fontsize = win->GetFont().GetPointSize();
-	win->SetFont(wxFont(fontsize, wxDEFAULT, wxNORMAL, wxNORMAL, false, fontname));
+	win->SetFont(wxFont(fontsize, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, fontname));
 }
 
 wxString FilePathNormalCase(const wxString& name)
@@ -202,7 +205,12 @@ bool FilePathEqual(const wxString& name1, const wxString& name2)
 
 unsigned long FilePathHash(const wxString& name)
 {
-	return wxStringHash::wxCharStringHash(FilePathNormalCase(name));
+	const wchar_t* s = FilePathNormalCase(name).wc_str();
+#if wxMAJOR_VERSION == 2
+	return wxStringHash::wxCharStringHash(s);
+#else
+	return wxStringHash::stringHash(s);
+#endif
 }
 
 wxString& WxStrAppendUCS4(wxString& ws, ucs4_t ch)
@@ -388,20 +396,6 @@ AppPath* AppPath::s_inst = nullptr;
 wxString g_wxsRegKeyWxMEdit = wxT("HKEY_CURRENT_USER\\Software\\wxMEdit");
 wxString g_wxsRegValConfigInHome = wxT("ConfigInUserHome");
 
-// return application data directory in user home
-//     ~/.wxmedit/          under *NIX
-//     %APPDATA%\\wxmedit\\ under Windows
-wxString GetDataDirInUserHome()
-{
-	wxString home_dir = wxStandardPaths::Get().GetUserDataDir() + wxFILE_SEP_PATH;
-	if(!wxDirExists(home_dir))
-	{
-		wxLogNull nolog; // disable error message
-		wxMkdir(home_dir);
-	}
-	return home_dir;
-}
-
 #ifdef __WXMSW__
 bool FileWritable(const wxString& test_file)
 {
@@ -443,6 +437,14 @@ bool AppPath::ConfigWillBeInUserHome() const
 #endif
 }
 
+void AppPath::CreateConfigDirInUserHome() const
+{
+	if (wxDirExists(usr_dir))
+		return;
+	wxLogNull nolog; // disable error message
+	wxMkdir(usr_dir);
+}
+
 void AppPath::Init(const wxString& appname)
 {
 	cfg_file = appname + wxT(".cfg");
@@ -451,7 +453,7 @@ void AppPath::Init(const wxString& appname)
 	filename.MakeAbsolute();
 	app_dir = filename.GetPath(wxPATH_GET_VOLUME | wxPATH_GET_SEPARATOR);
 
-	usr_dir = GetDataDirInUserHome();
+	usr_dir = wxStandardPaths::Get().GetUserDataDir() + wxFILE_SEP_PATH;
 
 #ifdef __WXMSW__
 	app_dir_writable = FileWritable(app_dir + wxT("portable_test"));
@@ -463,6 +465,9 @@ void AppPath::Init(const wxString& appname)
 		return;
 	}
 #endif
+
+	if (cfg_in_usrhome)
+		CreateConfigDirInUserHome();
 
 	home_dir = usr_dir;
 	another_dir = app_dir;
@@ -477,6 +482,9 @@ void AppPath::SaveConfig() const
 	if (ConfigWillBeInUserHome() == cfg_in_usrhome)
 		return;
 
+	if (ConfigWillBeInUserHome())
+		CreateConfigDirInUserHome();
+
 	wxFileConfig *cfg=reinterpret_cast<wxFileConfig *>(wxFileConfig::Get(false));
 	wxFileOutputStream another_cfg(another_dir + cfg_file);
 	if (!another_cfg.IsOk())
@@ -487,11 +495,11 @@ void AppPath::SaveConfig() const
 #endif
 }
 
-static long WXMNewID(long begin, size_t count)
+static int WXMNewID(int begin, size_t count)
 {
-	for (size_t i = 1; i<count; ++i)
-		wxRegisterId(begin + i);
-	return begin + count - 1;
+	for (size_t i=1; i<count; ++i)
+		wxRegisterId(int(begin + i));
+	return int(begin + count - 1);
 }
 
 WXMControlIDReserver::WXMControlIDReserver()
@@ -504,4 +512,107 @@ WXMControlIDReserver::WXMControlIDReserver()
 	rid20 = WXMNewID(rid1, 20);
 }
 
+bool UseForceEncoding(const wxConfigBase *cfg)
+{
+	bool force = false;
+	cfg->Read(wxT("/wxMEdit/UseForceEncoding"), &force, false);
+	return force;
+}
+
+wxString GetDefaultOrForceEncoding(const wxConfigBase *cfg)
+{
+	if (UseForceEncoding(cfg))
+		return GetForceEncoding(cfg);
+
+	return cfg->Read(wxT("/wxMEdit/DefaultEncoding"));
+}
+
 } // namespace wxm
+
+// get fontname from registry mime database
+static inline void MSW_GetFontName(const std::wstring codepage, std::wstring &fontname)
+{
+#ifdef __WXMSW__
+	wxLogNull nolog;
+
+	const wxString MIMEDB(wxm::s_wxsRegkeyClasses + wxT("MIME\\Database\\Codepage\\"));
+	boost::scoped_ptr<wxRegKey> pRegKey(new wxRegKey(MIMEDB + codepage.c_str()));
+
+	if (!pRegKey->Exists())
+		return;
+
+	long cp;
+	if (pRegKey->QueryValue(wxT("Family"), &cp))
+		pRegKey.reset(new wxRegKey(MIMEDB + wxString::Format(wxT("%d"), cp)));
+
+	wxString wxsfontname = fontname.c_str();
+	pRegKey->QueryValue(wxT("FixedWidthFont"), wxsfontname);
+	fontname = wxsfontname.wc_str();
+#endif
+}
+
+std::wstring GetMSCPFontName(const std::wstring & mscp)
+{
+	std::wstring fontname = wxm::MonoFontName;
+
+	if (mscp.empty())
+		return fontname;
+
+	MSW_GetFontName(mscp, fontname);
+	return fontname;
+}
+
+std::wstring GetASCIIArtFontName()
+{
+	return wxm::ASCIIArtFontName;
+}
+
+const wchar_t * LocalizeText(const wchar_t* txt)
+{
+#if wxMAJOR_VERSION == 2
+	return wxGetTranslation(txt);
+#else
+	return wxGetTranslation(txt).wc_str();
+#endif
+}
+
+namespace xm
+{
+
+void BackwardBlockDumper::Dump(ubyte* buf, size_t len)
+{
+	wxFileOffset bsize = m_bit->m_Size;
+	size_t count = len;
+	size_t n;
+	while (true)
+	{
+		n = count;
+		if (bsize < (wxFileOffset)n)
+			n = size_t(bsize);
+		m_bit->Get(bsize - n, buf + (count -= n), n);
+		if (count == 0)
+			break;
+
+		bsize = (--m_bit)->m_Size;
+	}
+}
+
+void ForwardBlockDumper::Dump(ubyte* buf, size_t len)
+{
+	wxFileOffset bsize = m_bit->m_Size;
+	size_t idx = 0;
+	size_t n;
+	while (true)
+	{
+		n = len - idx;
+		if (bsize < (wxFileOffset)n)
+			n = size_t(bsize);
+		m_bit->Get(0, buf + idx, n);
+		if ((idx += n) == len)
+			break;
+
+		bsize = (++m_bit)->m_Size;
+	}
+}
+
+} // namespace xm

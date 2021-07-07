@@ -2,7 +2,7 @@
 // vim:         ts=4 sw=4
 // Name:        wxm/edit/inframe.h
 // Description: Embedded wxMEdit in Main Frame
-// Copyright:   2014-2015  JiaYanwei   <wxmedit@gmail.com>
+// Copyright:   2014-2019  JiaYanwei   <wxmedit@gmail.com>
 // License:     GPLv3
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -11,22 +11,27 @@
 
 #include "simple.h"
 
+#include <unicode/numfmt.h>
+#include <boost/scoped_ptr.hpp>
+
 namespace wxm
 {
 
 struct InFrameWXMEdit : public MadEdit
 {
-	virtual void SetWordWrapMode(MadWordWrapMode mode);
-	virtual MadWordWrapMode GetWordWrapMode() { return m_WordWrapMode; }
+	virtual void SetWordWrapMode(MadWordWrapMode mode) override;
+	virtual MadWordWrapMode GetWordWrapMode() override { return m_WordWrapMode; }
 
 	void TrimTrailingSpaces();
 	void InsertEnumeration();
+	void ColumnAlign();
+	void ColumnPaste();
 
 	virtual bool BookmarkVisible() { return m_bookmark_visible; }
 	virtual void SetBookmarkVisible(bool visible);
 
-	virtual LineNumberList SaveBookmarkLineNumberList();
-	virtual void RestoreBookmarkByLineNumberList(const LineNumberList& linenums);
+	virtual LineNumberList SaveBookmarkLineNumberList() override;
+	virtual void RestoreBookmarkByLineNumberList(const LineNumberList& linenums) override;
 
 	void BeginPrint(const wxRect &printRect);
 	bool PrintPage(wxDC *dc, int pageNum);
@@ -47,21 +52,27 @@ struct InFrameWXMEdit : public MadEdit
 		return m_auto_searcher.Searcher(inhex, use_regex);
 	}
 
+
+	bool Reload();
+	// if the file is modified by another app, reload it.
+	bool ReloadByModificationTime();
+
 	InFrameWXMEdit(wxWindow* parent, wxWindowID id, const wxPoint& pos, const wxSize& size, long style);
 private:
-	virtual void DoSelectionChanged();
-	virtual void DoStatusChanged();
-	virtual void DoToggleWindow();
-	virtual void DoMouseRightUp();
+	virtual void DoSelectionChanged() override;
+	virtual void DoStatusChanged() override;
+	virtual void DoToggleWindow() override;
+	virtual void DoMouseRightUp() override;
 
-	virtual int CalcLineNumberAreaWidth(MadLineIterator lit, int lineid, int rowid, int toprow, int rowcount);
-	virtual int GetLineNumberAreaWidth(int number);
-	virtual int CachedLineNumberAreaWidth() { return m_LineNumberAreaWidth; }
-	virtual void CacheLineNumberAreaWidth(int width) { m_LineNumberAreaWidth = width; }
+	virtual int CalcLineNumberAreaWidth(MadLineIterator lit, int lineid, int rowid, int toprow, int rowcount) override;
+	virtual int GetLineNumberAreaWidth(int number) override;
+	virtual int CachedLineNumberAreaWidth() override { return m_LineNumberAreaWidth; }
+	virtual void CacheLineNumberAreaWidth(int width) override { m_LineNumberAreaWidth = width; }
 
-	virtual void PaintLineNumberArea(const wxColor & bgcolor, wxDC * dc, const wxRect& rect, bool is_trailing_subrow, MadLineIterator lineiter, int lineid, int text_top);
+	virtual void PaintLineNumberArea(const wxColor & bgcolor, wxDC * dc, const wxRect& rect, bool is_trailing_subrow, MadLineIterator lineiter, int lineid, int text_top) override;
 
-	virtual void OnPaintInPrinting(wxPaintDC& dc, wxMemoryDC& memdc);
+	virtual void OnPaintInPrinting(wxPaintDC& dc, wxMemoryDC& memdc) override;
+	virtual bool ManuallyCancelHexToText() override;
 
 	void BeginTextPrinting();
 	void BeginHexPrinting();
@@ -71,6 +82,8 @@ private:
 	void EndHexPrinting();
 
 	bool LineNumberAreaVisible() { return m_linenum_visible || m_bookmark_visible; }
+
+	wxString FormattedNumber(int64_t num);
 
 	int             m_LineNumberAreaWidth;
 	bool            m_linenum_visible;
@@ -100,6 +113,7 @@ private:
 	int m_PrintTotalHexLineCount;
 
 	AutoSearcher m_auto_searcher;
+	boost::scoped_ptr <icu::NumberFormat> m_numfmt;
 };
 
 } //namespace wxm

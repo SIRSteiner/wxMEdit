@@ -1,7 +1,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 // Name:        wxmedit/wxmedit_basic.cpp
 // Description: Basic Functions of wxMEdit
-// Copyright:   2013-2015  JiaYanwei   <wxmedit@gmail.com>
+// Copyright:   2013-2019  JiaYanwei   <wxmedit@gmail.com>
 //              2007-2010  Alston Chen <madedit@gmail.com>
 // License:     GPLv3
 ///////////////////////////////////////////////////////////////////////////////
@@ -9,7 +9,7 @@
 #include "wxmedit.h"
 #include "../xm/cxx11.h"
 #include "../wxm/edit/simple.h"
-#include "../wxm/encoding/unicode.h"
+#include "../xm/encoding/unicode.h"
 #include "../wxm/utils.h"
 #include "../mad_utils.h"
 #include "../xm/uutils.h"
@@ -33,6 +33,7 @@
 
 #include <boost/assign/list_of.hpp>
 #include <boost/assign/std/vector.hpp>
+#include <boost/algorithm/string/predicate.hpp>
 
 #include <algorithm>
 
@@ -41,37 +42,37 @@
 #define new new(_NORMAL_BLOCK ,__FILE__, __LINE__)
 #endif
 
+namespace algo = boost::algorithm;
+
 extern const ucs4_t HexHeader[];
 
 //==============================================================================
 
 const std::vector<wxPoint> CR_Points = boost::assign::list_of
-    ( wxPoint(  0,   0) )
-    ( wxPoint(400,   0) )
-    ( wxPoint(400, 999) )
-    ( wxPoint(101, 700) )
-    ( wxPoint(400, 700) )
-    ( wxPoint(600, 999) ); // max value
+    ( wxPoint( 3,  5) )
+    ( wxPoint( 1,  9) )
+    ( wxPoint( 9,  9) )
+    ( wxPoint( 1,  9) )
+    ( wxPoint( 3, 13) )
+    ( wxPoint(10, 18) ); // max value
 
-const int LF_Points_Count = 5;
 const std::vector<wxPoint> LF_Points = boost::assign::list_of
-    ( wxPoint(578,   0) )
-    ( wxPoint(178,   0) )
-    ( wxPoint(178, 999) )
-    ( wxPoint(477, 700) )
-    ( wxPoint(178, 700) )
-    ( wxPoint(600, 999) ); // max value
+    ( wxPoint(1,  7) )
+    ( wxPoint(3,  9) )
+    ( wxPoint(3,  1) )
+    ( wxPoint(3,  9) )
+    ( wxPoint(5,  7) )
+    ( wxPoint(7, 12) ); // max value
 
 const std::vector<wxPoint> CRLF_Points = boost::assign::list_of
-    ( wxPoint(  0,   0) )
-    ( wxPoint(560,   0) )
-    ( wxPoint(300,   0) )
-    ( wxPoint(300, 700) )
-    ( wxPoint( 76, 700) )
-    ( wxPoint(300, 999) )
-    ( wxPoint(524, 700) )
-    ( wxPoint(300, 700) )
-    ( wxPoint(600, 999) ); // max value
+    ( wxPoint( 3,  5) )
+    ( wxPoint( 1,  9) )
+    ( wxPoint( 9,  9) )
+    ( wxPoint( 9,  1) )
+    ( wxPoint( 9,  9) )
+    ( wxPoint( 1,  9) )
+    ( wxPoint( 3, 13) )
+    ( wxPoint(10, 18) ); // max value
 
 void MadEdit::SetSyntax(const wxString &title, bool manual)
 {
@@ -118,48 +119,48 @@ void MadEdit::ApplySyntaxAttributes(MadSyntax *syn, bool matchTitle)
     }
 }
 
-void MadEdit::SetEncoding(const wxString &encname)
+void MadEdit::SetEncoding(const std::wstring & encname)
 {
-    if(encname.Lower() != m_Encoding->GetName().Lower())
+    if (algo::iequals(encname, m_Encoding->GetName()))
+        return;
+
+    //delete m_Encoding;
+    m_Encoding = xm::EncodingManager::Instance().GetEncoding(encname);
+    m_Lines->SetEncoding(m_Encoding);
+    m_Syntax->SetEncoding(m_Encoding);
+
+    wxString fontname;
+    m_Config->Read(wxString(wxT("/Fonts/"))+m_Encoding->GetName().c_str(), &fontname, m_Encoding->GetFontName().c_str());
+
+    bool oldlf=m_LoadingFile;
+    m_LoadingFile=true;
+    SetTextFont(fontname, m_TextFont->GetPointSize(), false);
+    m_LoadingFile=oldlf;
+
+    if (m_LoadingFile)
+        return;
+
+    if(IsTextFile())    // data is text
     {
-        //delete m_Encoding;
-        m_Encoding=wxm::WXMEncodingManager::Instance().GetWxmEncoding(encname);
-        m_Lines->SetEncoding(m_Encoding);
-        m_Syntax->SetEncoding(m_Encoding);
+        ReformatAll();
+    }
+    else // hex data
+    {
+        AppearCaret();
+        UpdateScrollBarPos();
 
-        wxString fontname;
-        m_Config->Read(wxString(wxT("/Fonts/"))+m_Encoding->GetName(), &fontname, m_Encoding->GetFontName());
-
-        bool oldlf=m_LoadingFile;
-        m_LoadingFile=true;
-        SetTextFont(fontname, m_TextFont->GetPointSize(), false);
-        m_LoadingFile=oldlf;
-
-        if(!m_LoadingFile)
+        if(!m_CaretAtHexArea)
         {
-            if(IsTextFile())    // data is text
-            {
-                ReformatAll();
-            }
-            else // hex data
-            {
-                AppearCaret();
-                UpdateScrollBarPos();
-
-                if(!m_CaretAtHexArea)
-                {
-                    UpdateTextAreaXPos();
-                    m_LastTextAreaXPos = m_TextAreaXPos;
-                }
-            }
-
-            DoStatusChanged();
-            DoSelectionChanged();
-
-            m_RepaintAll = true;
-            Refresh(false);
+            UpdateTextAreaXPos();
+            m_LastTextAreaXPos = m_TextAreaXPos;
         }
     }
+
+    DoStatusChanged();
+    DoSelectionChanged();
+
+    m_RepaintAll = true;
+    Refresh(false);
 }
 
 
@@ -176,17 +177,14 @@ void MadEdit::SetRecordCaretMovements(bool value)
 
 void MadEdit::CalcEOLMarkPoints(std::vector<wxPoint>& dest, const std::vector<wxPoint>& src, const wxSize& charsz)
 {
-    const int y0 = charsz.y / 5;
-    const int x0 = charsz.x / 5;
-
     const int maxX = src.rbegin()->x;
     const int maxY = src.rbegin()->y;
     dest.clear();
     const size_t cnt = src.size() - 1;
     for (size_t i = 0; i< cnt; ++i)
     {
-        int x = x0 + charsz.x * src[i].x / maxX * 5 / 7;
-        int y = y0 + charsz.y * src[i].y / maxY * 5 / 7;
+        int x = (int)round(1.0 * charsz.x * src[i].x / maxX);
+        int y = (int)round(1.0 * charsz.y * src[i].y / maxY);
         dest.push_back(wxPoint(x, y));
     }
 }
@@ -254,7 +252,7 @@ void MadEdit::SetTextFont(const wxString &name, int size, bool forceReset)
         memset(m_TextFontWidths, 0, sizeof(m_TextFontWidths));
         m_TextFontWidths[0] = FontWidthManager::GetFontWidths(0, name, size, this);
 
-        m_cfg_writer->Record(wxString(wxT("/Fonts/"))+m_Encoding->GetName(), name);
+        m_cfg_writer->Record(wxString(wxT("/Fonts/"))+m_Encoding->GetName().c_str(), name);
         m_cfg_writer->Record(wxT("/wxMEdit/TextFontSize"), size);
 
 
@@ -440,23 +438,12 @@ void MadEdit::SetLineSpacing(int percent)
 
 void MadEdit::HexModeToTextMode(MadEditMode mode)
 {
-    if(m_LoadingFile == false)
+    if (!m_LoadingFile)
     {
-        long maxtextfilesize;
-        wxString oldpath=m_Config->GetPath();
-        m_Config->Read(wxT("/wxMEdit/MaxTextFileSize"), &maxtextfilesize, 1024*1024*10);//10MB
-        m_Config->SetPath(oldpath);
-
-        if(!IsTextFile())
+        if (!IsTextFile())
         {
-            if(m_Lines->m_Size>=maxtextfilesize)
-            {
-                wxString size=FormatThousands(wxLongLong(m_Lines->m_Size).ToString());
-                if(wxNO==wxMessageBox(wxString::Format(_("Do you want to continue?\nThe file size is %s bytes.\nIt may take long time and large memories to convert to Text/Column Mode."), size.c_str()), _("Hex Mode to Text/Column Mode"), wxYES_NO))
-                {
-                    return;
-                }
-            }
+            if (ManuallyCancelHexToText())
+                return;
 
             m_DrawingXPos = 0;
             m_TopRow = m_TextTopRow;
@@ -864,7 +851,7 @@ void MadEdit::GetSelText(wxString &ws)
     else
     {
         wxFileOffset pos = m_SelectionBegin->pos;
-        MadUCQueue ucqueue;
+        xm::UCQueue ucqueue;
 
         MadLineIterator lit = m_SelectionBegin->iter;
         m_Lines->InitNextUChar(lit, m_SelectionBegin->linepos);
@@ -877,9 +864,9 @@ void MadEdit::GetSelText(wxString &ws)
                 m_Lines->NextUChar(ucqueue);
             }
 
-            wxm::WxStrAppendUCS4(ws, ucqueue.back().first);
+            wxm::WxStrAppendUCS4(ws, ucqueue.back().ucs4());
 
-            pos += ucqueue.back().second;
+            pos += ucqueue.back().nbytes();
         }
         while(pos < m_SelectionEnd->pos);
     }
@@ -888,7 +875,7 @@ void MadEdit::GetSelText(wxString &ws)
 void MadEdit::GetText(wxString &ws, bool ignoreBOM)
 {
     wxFileOffset pos = 0;
-    MadUCQueue ucqueue;
+    xm::UCQueue ucqueue;
 
     MadLineIterator lit = m_Lines->m_LineList.begin();
 
@@ -910,9 +897,9 @@ void MadEdit::GetText(wxString &ws, bool ignoreBOM)
             m_Lines->NextUChar(ucqueue);
         }
 
-        wxm::WxStrAppendUCS4(ws, ucqueue.back().first);
+        wxm::WxStrAppendUCS4(ws, ucqueue.back().ucs4());
 
-        pos += ucqueue.back().second;
+        pos += ucqueue.back().nbytes();
     }
     while(pos < m_Lines->m_Size);
 }
@@ -1036,7 +1023,7 @@ void MadEdit::SetText(const wxString &ws)
 bool MadEdit::GetLine(wxString &ws, int line, size_t maxlen, bool ignoreBOM)
 {
     wxFileOffset pos = 0;
-    MadUCQueue ucqueue;
+    xm::UCQueue ucqueue;
 
     MadLineIterator lit = m_Lines->m_LineList.begin();
 
@@ -1067,7 +1054,7 @@ bool MadEdit::GetLine(wxString &ws, int line, size_t maxlen, bool ignoreBOM)
             return true;
         }
 
-        ucs4_t uc=ucqueue.back().first;
+        ucs4_t uc=ucqueue.back().ucs4();
         if(uc==0x0D || uc==0x0A)
             return true;
 
@@ -1112,7 +1099,7 @@ void MadEdit::SelectAll()
 
         if(m_SelectionPos2.linepos > 0)//update xpos
         {
-            MadUCQueue ucharQueue;
+            xm::UCQueue ucharQueue;
             vector<int> widthArray;
             int ucharPos;
             UpdateCaret(m_SelectionPos2, ucharQueue, widthArray ,ucharPos);
@@ -1168,41 +1155,37 @@ void MadEdit::CopyColumnText()
 void MadEdit::CopyRegularText()
 {
     wxString ws;
-    MadUCQueue ucqueue;
+    xm::UCQueue ucqueue;
 
     wxFileOffset pos = m_SelectionBegin->pos;
     MadLineIterator lit = m_SelectionBegin->iter;
     m_Lines->InitNextUChar(lit, m_SelectionBegin->linepos);
     do
     {
-        if(ucqueue.size() || m_Lines->NextUChar(ucqueue))
-        {
-            ucs4_t &uc=ucqueue.front().first;
-            if(uc==0x0D || uc==0x0A)
-            {
-                ws << wxm::g_nl_default.wxValue();
-
-                pos += ucqueue.front().second;
-
-                if(uc==0x0D && m_Lines->NextUChar(ucqueue) &&
-                    ucqueue.back().first==0x0A)
-                {
-                    pos += ucqueue.back().second;
-                }
-
-                ucqueue.clear();
-            }
-
-            wxm::WxStrAppendUCS4(ws, uc);
-            pos += ucqueue.front().second;
-            ucqueue.clear();
-        }
-        else
+        if (ucqueue.empty() && !m_Lines->NextUChar(ucqueue))
         {
             m_Lines->InitNextUChar(++lit, 0);
+            continue;
         }
-    }
-    while(pos < m_SelectionEnd->pos);
+
+        const ucs4_t &uc=ucqueue.front().ucs4();
+        if(uc==0x0D || uc==0x0A)
+        {
+            ws << wxm::g_nl_default.wxValue();
+
+            pos += ucqueue.front().nbytes();
+
+            if(uc==0x0D && m_Lines->NextUChar(ucqueue) && ucqueue.back().ucs4()==0x0A)
+                pos += ucqueue.back().nbytes();
+
+            ucqueue.clear();
+            continue;
+        }
+
+        wxm::WxStrAppendUCS4(ws, uc);
+        pos += ucqueue.front().nbytes();
+        ucqueue.clear();
+    } while(pos < m_SelectionEnd->pos);
 
     PutTextToClipboard(ws);
 }
@@ -1623,7 +1606,7 @@ void MadEdit::SetCaretPosition(wxFileOffset pos, wxFileOffset selbeg, wxFileOffs
 }
 
 
-bool MadEdit::LoadFromFile(const wxString &filename, const wxString &encoding)
+bool MadEdit::LoadFromFile(const wxString& filename, const std::wstring& encoding, bool hexmode)
 {
     wxFileName fn(filename);
     if(MadDirExists(fn.GetPath(wxPATH_GET_VOLUME))==0)
@@ -1632,7 +1615,7 @@ bool MadEdit::LoadFromFile(const wxString &filename, const wxString &encoding)
         return false;
     }
 
-    if(m_Lines->LoadFromFile(filename, encoding)==false)
+    if(m_Lines->LoadFromFile(filename, encoding, hexmode)==false)
         return false;
 
     m_UndoBuffer->Clear();
@@ -1662,14 +1645,8 @@ bool MadEdit::LoadFromFile(const wxString &filename, const wxString &encoding)
     m_LastCaretXPos = 0;
     m_DoRecountLineWidth = false;
 
-    if(m_EditMode == emHexMode)
-    {
-
-    }
-    else
-    {
+    if (m_EditMode != emHexMode)
         UpdateCaret(m_CaretPos, m_ActiveRowUChars, m_ActiveRowWidths, m_CaretRowUCharPos);
-    }
 
     m_Selection = false;
     m_SelFirstRow=INT_MAX;
@@ -1794,58 +1771,6 @@ int MadEdit::Save(bool ask, const wxString &title, bool saveas) // return YES, N
     return ret;
 }
 
-bool MadEdit::Reload()
-{
-    if(m_Lines->m_Name.IsEmpty()) return false;
-
-    if(m_Modified)
-    {
-        wxMessageDialog dlg(this, _("Do you want to discard changes?"), wxT("wxMEdit"), wxYES_NO|wxICON_QUESTION );
-        if(dlg.ShowModal()!=wxID_YES)
-        {
-            return false;
-        }
-    }
-
-    WXMLocations loc = SaveLocations();
-    MadEditMode editmode=m_EditMode;
-
-    LoadFromFile(m_Lines->m_Name, m_Lines->m_Encoding->GetName());
-    SetEditMode(editmode);
-    RestoreLocations(loc);
-    return true;
-}
-
-bool MadEdit::ReloadByModificationTime()
-{
-    if(m_Lines->m_Name.IsEmpty()) return false;
-
-    wxLogNull nolog;
-    time_t modtime=wxFileModificationTime(m_Lines->m_Name);
-
-    if(modtime==0) // the file has been deleted
-    {
-        m_ModificationTime=0;
-        return false;
-    }
-
-    if(modtime == m_ModificationTime) return false; // the file doesn't change.
-
-    m_ModificationTime = modtime;
-
-    wxMessageDialog dlg(this,
-        wxString(_("This file has been changed by another application."))+ wxT("\n")+
-        wxString(_("Do you want to reload it?"))+ wxT("\n\n")+ m_Lines->m_Name,
-        wxT("wxMEdit"), wxYES_NO|wxICON_QUESTION );
-    if(dlg.ShowModal()!=wxID_YES)
-    {
-        return false;
-    }
-
-    // YES, reload it.
-    return Reload();
-}
-
 MadEdit::WXMLocations MadEdit::SaveLocations()
 {
     WXMLocations loc;
@@ -1895,40 +1820,6 @@ void MadEdit::RestoreLocations(const WXMLocations& loc)
     }
 
     DoSelectionChanged();
-}
-
-wxString FormatThousands(const wxString& s) 
-{ 
-    /* 
-    // example: 
-    int mynumber = 12345678; 
-    wxString s = wxString::Format("%d", mynumber); // format the integer to string 
-    s = FormatThousands(s); // add separators 
-    // s now contains "12,345,678" or "12.345.678" according to locale. 
-    */
-
-    static wxString thousandssep = wxT(","); 
-    static struct lconv *loc = 0; 
-    if (!loc) { 
-        loc = localeconv(); 
-        if (loc && loc->thousands_sep && loc->thousands_sep[0]) 
-        {
-#if wxUSE_UNICODE
-            thousandssep = wxString(loc->thousands_sep, wxConvLibc);
-#else
-            thousandssep = loc->thousands_sep;
-#endif
-        }
-    } 
-
-    wxString in = s, out; 
-    while (in.Length() > 3) { 
-            out.Prepend(thousandssep + in.Right(3)); 
-            in.RemoveLast(3); 
-    } 
-    if (!in.IsEmpty()) 
-            out.Prepend(in); 
-    return out; 
 }
 
 bool StrToInt64(wxString str, wxInt64 &i64)

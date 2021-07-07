@@ -2,22 +2,17 @@
 // vim:         sw=4 ts=4
 // Name:        xm/cxx11.h
 // Description: C++ 11 adaptor
-// Copyright:   2015  JiaYanwei   <wxmedit@gmail.com>
+// Copyright:   2015-2019  JiaYanwei   <wxmedit@gmail.com>
 // License:     GPLv3
 ///////////////////////////////////////////////////////////////////////////////
 
 #ifndef _XM_CXX11_H_
 #define _XM_CXX11_H_
 
-#include <boost/version.hpp>
 #include <boost/config.hpp>
 
-#if (__cplusplus <= 199711L) && (BOOST_VERSION <= 104000)
+#if defined(BOOST_NO_CXX11_NULLPTR) || defined(BOOST_NO_NULLPTR)
 # define XM_NO_NULLPTR_
-#else
-# if defined(BOOST_NO_CXX11_NULLPTR) || defined(BOOST_NO_NULLPTR)
-#  define XM_NO_NULLPTR_
-# endif
 #endif
 
 #ifdef XM_NO_NULLPTR_

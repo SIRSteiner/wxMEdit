@@ -1,7 +1,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 // Name:        dialog/wxm_enumeration_dialog.cpp
 // Description: Insert Ordered Sequence Dialog
-// Copyright:   2015  JiaYanwei   <wxmedit@gmail.com>
+// Copyright:   2015-2019  JiaYanwei   <wxmedit@gmail.com>
 // License:     GPLv3
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -9,11 +9,20 @@
 #include "../wxm/utils.h"
 #include "../wxm/wx_icu.h"
 
+#ifdef _MSC_VER
+# pragma warning( push )
+# pragma warning( disable : 4996 )
+#endif
+// disable 4996 {
 //(*InternalHeaders(WXMEnumerationDialog)
 #include <wx/intl.h>
 #include <wx/string.h>
 //*)
 #include <wx/msgdlg.h>
+// disable 4996 }
+#ifdef _MSC_VER
+# pragma warning( pop )
+#endif
 
 #include <unicode/locid.h>
 #include <unicode/uversion.h>
@@ -29,6 +38,8 @@
 #ifdef _MSC_VER
 # pragma warning( pop )
 #endif
+
+#include <boost/lexical_cast.hpp>
 
 #include <limits>
 
@@ -135,9 +146,9 @@ private:
 
 NSIWidth::NSIWidth()
 {
-	UErrorCode uerr;
+	UErrorCode uerr = U_ZERO_ERROR;
 	UnicodeString wcv("halfwidth-fullwidth");
-	m_fwtr.reset(icu::Transliterator::createInstance(wcv, UTRANS_FORWARD, uerr));
+	m_fwtr.reset(Transliterator::createInstance(wcv, UTRANS_FORWARD, uerr));
 }
 
 struct NSIHalfWidth: public virtual NSIWidth
@@ -292,8 +303,8 @@ NumSysBase::NumSysBase(const std::string& id): m_len(0), m_grouping(false)
 	, m_fullwidth(false), m_alignleft(false), m_padzero(false)
 {
 	UErrorCode uerr = U_ZERO_ERROR;
-	icu::Locale loc = icu::Locale(("C@numbers=" + id).c_str());
-	m_icufmt.reset(icu::NumberFormat::createInstance(loc, uerr));
+	Locale loc = Locale(("C@numbers=" + id).c_str());
+	m_icufmt.reset(NumberFormat::createInstance(loc, uerr));
 }
 
 UnicodeString NumSysBase::DecFormat(int64_t n, bool groupping)
@@ -352,62 +363,62 @@ WXMEnumerationDialog::WXMEnumerationDialog(std::vector<ucs4_t>& seq, size_t& seq
 	: m_sequence(seq), m_seqrows(seqrows), m_selrows(1), m_degressive(false), m_exponential(false)
 {
 	//(*Initialize(WXMEnumerationDialog)
-	wxBoxSizer* BoxSizer4;
-	wxStaticBoxSizer* StaticBoxSizer2;
-	wxBoxSizer* BoxSizer6;
-	wxBoxSizer* BoxSizer19;
-	wxBoxSizer* BoxSizer15;
-	wxBoxSizer* BoxSizer20;
-	wxBoxSizer* BoxSizer5;
 	wxBoxSizer* BoxSizer10;
+	wxBoxSizer* BoxSizer11;
+	wxBoxSizer* BoxSizer12;
+	wxBoxSizer* BoxSizer13;
+	wxBoxSizer* BoxSizer14;
+	wxBoxSizer* BoxSizer15;
+	wxBoxSizer* BoxSizer16;
+	wxBoxSizer* BoxSizer17;
+	wxBoxSizer* BoxSizer18;
+	wxBoxSizer* BoxSizer19;
+	wxBoxSizer* BoxSizer1;
+	wxBoxSizer* BoxSizer20;
+	wxBoxSizer* BoxSizer21;
+	wxBoxSizer* BoxSizer22;
+	wxBoxSizer* BoxSizer2;
+	wxBoxSizer* BoxSizer3;
+	wxBoxSizer* BoxSizer4;
+	wxBoxSizer* BoxSizer5;
+	wxBoxSizer* BoxSizer6;
 	wxBoxSizer* BoxSizer7;
 	wxBoxSizer* BoxSizer8;
-	wxBoxSizer* BoxSizer21;
-	wxBoxSizer* BoxSizer13;
-	wxBoxSizer* BoxSizer2;
-	wxBoxSizer* BoxSizer11;
-	wxBoxSizer* BoxSizer16;
-	wxBoxSizer* BoxSizer18;
-	wxBoxSizer* BoxSizer12;
-	wxBoxSizer* BoxSizer14;
-	wxStaticBoxSizer* StaticBoxSizer3;
-	wxBoxSizer* BoxSizer17;
-	wxBoxSizer* BoxSizer1;
 	wxBoxSizer* BoxSizer9;
 	wxStaticBoxSizer* StaticBoxSizer1;
-	wxBoxSizer* BoxSizer22;
-	wxBoxSizer* BoxSizer3;
+	wxStaticBoxSizer* StaticBoxSizer2;
+	wxStaticBoxSizer* StaticBoxSizer3;
 
-	Create(parent, wxID_ANY, _("Insert Ordered Sequence"), wxDefaultPosition, wxDefaultSize, wxCAPTION|wxSYSTEM_MENU|wxRESIZE_BORDER|wxCLOSE_BOX|wxDIALOG_NO_PARENT|wxMAXIMIZE_BOX, _T("wxID_ANY"));
+	Create(parent, wxID_ANY, _("Insert Ordered Sequence"), wxDefaultPosition, wxDefaultSize, wxCAPTION|wxSYSTEM_MENU|wxRESIZE_BORDER|wxCLOSE_BOX|wxMAXIMIZE_BOX, _T("wxID_ANY"));
 	BoxSizer1 = new wxBoxSizer(wxHORIZONTAL);
 	BoxSizer12 = new wxBoxSizer(wxVERTICAL);
 	StaticBoxSizer1 = new wxStaticBoxSizer(wxHORIZONTAL, this, _("Sequence"));
 	BoxSizer13 = new wxBoxSizer(wxVERTICAL);
 	BoxSizer15 = new wxBoxSizer(wxHORIZONTAL);
 	StaticTextInitalNum = new wxStaticText(this, ID_STATICTEXT1, _("&Initial Number"), wxDefaultPosition, wxDefaultSize, 0, _T("ID_STATICTEXT1"));
-	BoxSizer15->Add(StaticTextInitalNum, 0, wxALL|wxALIGN_LEFT|wxALIGN_CENTER_VERTICAL, 2);
+	BoxSizer15->Add(StaticTextInitalNum, 0, wxALL|wxALIGN_CENTER_VERTICAL, 2);
 	StaticText1 = new wxStaticText(this, ID_STATICTEXT3, _(":"), wxDefaultPosition, wxDefaultSize, 0, _T("ID_STATICTEXT3"));
 	BoxSizer15->Add(StaticText1, 0, wxALL|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 0);
-	BoxSizer13->Add(BoxSizer15, 1, wxALL|wxEXPAND|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 2);
+	BoxSizer13->Add(BoxSizer15, 1, wxALL|wxEXPAND, 2);
 	BoxSizer16 = new wxBoxSizer(wxHORIZONTAL);
 	StaticTextStep = new wxStaticText(this, ID_STATICTEXT2, _("Step"), wxDefaultPosition, wxDefaultSize, 0, _T("ID_STATICTEXT2"));
-	BoxSizer16->Add(StaticTextStep, 0, wxALL|wxALIGN_LEFT|wxALIGN_CENTER_VERTICAL, 2);
+	BoxSizer16->Add(StaticTextStep, 0, wxALL|wxALIGN_CENTER_VERTICAL, 2);
 	StaticText2 = new wxStaticText(this, ID_STATICTEXT10, _(":"), wxDefaultPosition, wxDefaultSize, 0, _T("ID_STATICTEXT10"));
 	BoxSizer16->Add(StaticText2, 0, wxALL|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 0);
-	BoxSizer13->Add(BoxSizer16, 1, wxALL|wxEXPAND|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 2);
+	BoxSizer13->Add(BoxSizer16, 1, wxALL|wxEXPAND, 2);
 	BoxSizer17 = new wxBoxSizer(wxHORIZONTAL);
 	StaticTextFinalNum = new wxStaticText(this, ID_STATICTEXTFINALNUM, _("Final Number"), wxDefaultPosition, wxDefaultSize, 0, _T("ID_STATICTEXTFINALNUM"));
-	BoxSizer17->Add(StaticTextFinalNum, 0, wxALL|wxALIGN_LEFT|wxALIGN_CENTER_VERTICAL, 2);
+	BoxSizer17->Add(StaticTextFinalNum, 0, wxALL|wxALIGN_CENTER_VERTICAL, 2);
 	StaticText3 = new wxStaticText(this, ID_STATICTEXT11, _(":"), wxDefaultPosition, wxDefaultSize, 0, _T("ID_STATICTEXT11"));
 	BoxSizer17->Add(StaticText3, 0, wxALL|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 0);
-	BoxSizer13->Add(BoxSizer17, 1, wxALL|wxEXPAND|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 2);
-	StaticBoxSizer1->Add(BoxSizer13, 0, wxALL|wxEXPAND|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 2);
+	BoxSizer13->Add(BoxSizer17, 1, wxALL|wxEXPAND, 2);
+	StaticBoxSizer1->Add(BoxSizer13, 0, wxALL|wxEXPAND, 2);
 	BoxSizer14 = new wxBoxSizer(wxVERTICAL);
 	BoxSizer2 = new wxBoxSizer(wxHORIZONTAL);
 	TextCtrlInitialNum = new wxTextCtrl(this, ID_TEXTCTRLINITIALNUM, _("1"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator, _T("ID_TEXTCTRLINITIALNUM"));
 	TextCtrlInitialNum->SetMaxLength(66);
-	BoxSizer2->Add(TextCtrlInitialNum, 1, wxALL|wxEXPAND|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 2);
-	BoxSizer14->Add(BoxSizer2, 1, wxALL|wxEXPAND|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 2);
+	BoxSizer2->Add(TextCtrlInitialNum, 1, wxALL|wxEXPAND, 2);
+	BoxSizer14->Add(BoxSizer2, 1, wxALL|wxEXPAND, 2);
 	BoxSizer3 = new wxBoxSizer(wxHORIZONTAL);
 	ChoiceStepOp = new wxChoice(this, ID_CHOICESTEPOP, wxDefaultPosition, wxDefaultSize, 0, 0, 0, wxDefaultValidator, _T("ID_CHOICESTEPOP"));
 	ChoiceStepOp->SetSelection( ChoiceStepOp->Append(_("+")) );
@@ -418,7 +429,7 @@ WXMEnumerationDialog::WXMEnumerationDialog(std::vector<ucs4_t>& seq, size_t& seq
 	TextCtrlStepParam = new wxTextCtrl(this, ID_TEXTCTRLSTEPPARAM, _("1"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator, _T("ID_TEXTCTRLSTEPPARAM"));
 	TextCtrlStepParam->SetMaxLength(66);
 	BoxSizer3->Add(TextCtrlStepParam, 1, wxALL|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 2);
-	BoxSizer14->Add(BoxSizer3, 1, wxALL|wxEXPAND|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 2);
+	BoxSizer14->Add(BoxSizer3, 1, wxALL|wxEXPAND, 2);
 	BoxSizer4 = new wxBoxSizer(wxHORIZONTAL);
 	ChoiceFinalCmp = new wxChoice(this, ID_CHOICEFINALCMP, wxDefaultPosition, wxDefaultSize, 0, 0, 0, wxDefaultValidator, _T("ID_CHOICEFINALCMP"));
 	ChoiceFinalCmp->SetSelection( ChoiceFinalCmp->Append(_("(Automatic)")) );
@@ -429,15 +440,15 @@ WXMEnumerationDialog::WXMEnumerationDialog(std::vector<ucs4_t>& seq, size_t& seq
 	TextCtrlFinalNum->SetMaxLength(66);
 	TextCtrlFinalNum->SetMinSize(wxSize(64,-1));
 	TextCtrlFinalNum->Disable();
-	BoxSizer4->Add(TextCtrlFinalNum, 1, wxALL|wxEXPAND|wxFIXED_MINSIZE|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 2);
-	BoxSizer14->Add(BoxSizer4, 1, wxALL|wxEXPAND|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 2);
+	BoxSizer4->Add(TextCtrlFinalNum, 1, wxALL|wxEXPAND|wxFIXED_MINSIZE, 2);
+	BoxSizer14->Add(BoxSizer4, 1, wxALL|wxEXPAND, 2);
 	StaticBoxSizer1->Add(BoxSizer14, 1, wxALL|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 2);
-	BoxSizer12->Add(StaticBoxSizer1, 0, wxALL|wxEXPAND|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 5);
+	BoxSizer12->Add(StaticBoxSizer1, 0, wxALL|wxEXPAND, 5);
 	StaticBoxSizer3 = new wxStaticBoxSizer(wxHORIZONTAL, this, _("Preview of First 10000 Lines"));
 	TextCtrlPreview = new wxTextCtrl(this, ID_TEXTCTRLPREVIEW, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_MULTILINE|wxTE_READONLY|wxVSCROLL, wxDefaultValidator, _T("ID_TEXTCTRLPREVIEW"));
-	StaticBoxSizer3->Add(TextCtrlPreview, 1, wxALL|wxEXPAND|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 2);
-	BoxSizer12->Add(StaticBoxSizer3, 1, wxALL|wxEXPAND|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 5);
-	BoxSizer1->Add(BoxSizer12, 1, wxALL|wxEXPAND|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 0);
+	StaticBoxSizer3->Add(TextCtrlPreview, 1, wxALL|wxEXPAND, 2);
+	BoxSizer12->Add(StaticBoxSizer3, 1, wxALL|wxEXPAND, 5);
+	BoxSizer1->Add(BoxSizer12, 1, wxALL|wxEXPAND, 0);
 	BoxSizer18 = new wxBoxSizer(wxVERTICAL);
 	StaticBoxSizer2 = new wxStaticBoxSizer(wxVERTICAL, this, _("Format"));
 	BoxSizer5 = new wxBoxSizer(wxHORIZONTAL);
@@ -445,18 +456,18 @@ WXMEnumerationDialog::WXMEnumerationDialog(std::vector<ucs4_t>& seq, size_t& seq
 	BoxSizer5->Add(StaticText6, 0, wxALL|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 2);
 	ChoiceNumSys = new wxChoice(this, ID_CHOICENUMSYS, wxDefaultPosition, wxDefaultSize, 0, 0, 0, wxDefaultValidator, _T("ID_CHOICENUMSYS"));
 	BoxSizer5->Add(ChoiceNumSys, 1, wxALL|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 2);
-	StaticBoxSizer2->Add(BoxSizer5, 1, wxALL|wxEXPAND|wxALIGN_TOP|wxALIGN_CENTER_HORIZONTAL, 2);
+	StaticBoxSizer2->Add(BoxSizer5, 1, wxALL|wxEXPAND, 2);
 	BoxSizer6 = new wxBoxSizer(wxHORIZONTAL);
 	RadioButtonHex = new wxRadioButton(this, ID_RADIOBUTTONHEX, _("He&x"), wxDefaultPosition, wxDefaultSize, wxRB_GROUP, wxDefaultValidator, _T("ID_RADIOBUTTONHEX"));
 	BoxSizer6->Add(RadioButtonHex, 0, wxALL|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 2);
 	RadioButtonDec = new wxRadioButton(this, ID_RADIOBUTTONDEC, _("&Dec"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator, _T("ID_RADIOBUTTONDEC"));
 	RadioButtonDec->SetValue(true);
-	BoxSizer6->Add(RadioButtonDec, 0, wxALL|wxEXPAND|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 2);
+	BoxSizer6->Add(RadioButtonDec, 0, wxALL|wxEXPAND, 2);
 	RadioButtonOct = new wxRadioButton(this, ID_RADIOBUTTONOCT, _("Oc&t"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator, _T("ID_RADIOBUTTONOCT"));
-	BoxSizer6->Add(RadioButtonOct, 0, wxALL|wxEXPAND|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 2);
+	BoxSizer6->Add(RadioButtonOct, 0, wxALL|wxEXPAND, 2);
 	RadioButtonBin = new wxRadioButton(this, ID_RADIOBUTTONBIN, _("&Bin"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator, _T("ID_RADIOBUTTONBIN"));
-	BoxSizer6->Add(RadioButtonBin, 0, wxALL|wxEXPAND|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 2);
-	StaticBoxSizer2->Add(BoxSizer6, 1, wxALL|wxEXPAND|wxALIGN_TOP|wxALIGN_CENTER_HORIZONTAL, 2);
+	BoxSizer6->Add(RadioButtonBin, 0, wxALL|wxEXPAND, 2);
+	StaticBoxSizer2->Add(BoxSizer6, 1, wxALL|wxEXPAND, 2);
 	BoxSizer22 = new wxBoxSizer(wxHORIZONTAL);
 	RadioButtonUpper = new wxRadioButton(this, ID_RADIOBUTTONUPPER, _("&Uppercase"), wxDefaultPosition, wxDefaultSize, wxRB_GROUP, wxDefaultValidator, _T("ID_RADIOBUTTONUPPER"));
 	RadioButtonUpper->SetValue(true);
@@ -465,26 +476,26 @@ WXMEnumerationDialog::WXMEnumerationDialog(std::vector<ucs4_t>& seq, size_t& seq
 	RadioButtonLower = new wxRadioButton(this, ID_RADIOBUTTONLOWER, _("Lowercas&e"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator, _T("ID_RADIOBUTTONLOWER"));
 	RadioButtonLower->Disable();
 	BoxSizer22->Add(RadioButtonLower, 1, wxALL|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 2);
-	StaticBoxSizer2->Add(BoxSizer22, 1, wxALL|wxEXPAND|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 2);
+	StaticBoxSizer2->Add(BoxSizer22, 1, wxALL|wxEXPAND, 2);
 	BoxSizer20 = new wxBoxSizer(wxHORIZONTAL);
 	RadioButtonHalfWidth = new wxRadioButton(this, ID_RADIOBUTTONHALFWIDTH, _("&Halfwidth"), wxDefaultPosition, wxDefaultSize, wxRB_GROUP, wxDefaultValidator, _T("ID_RADIOBUTTONHALFWIDTH"));
 	RadioButtonHalfWidth->SetValue(true);
 	BoxSizer20->Add(RadioButtonHalfWidth, 1, wxALL|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 2);
 	RadioButtonFullWidth = new wxRadioButton(this, ID_RADIOBUTTONFULLWIDTH, _("&Fullwidth"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator, _T("ID_RADIOBUTTONFULLWIDTH"));
 	BoxSizer20->Add(RadioButtonFullWidth, 1, wxALL|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 2);
-	StaticBoxSizer2->Add(BoxSizer20, 1, wxALL|wxEXPAND|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 2);
+	StaticBoxSizer2->Add(BoxSizer20, 1, wxALL|wxEXPAND, 2);
 	BoxSizer21 = new wxBoxSizer(wxHORIZONTAL);
 	CheckBoxGrpSep = new wxCheckBox(this, ID_CHECKBOXGRPSEP, _("Use &Grouping Separator"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator, _T("ID_CHECKBOXGRPSEP"));
 	CheckBoxGrpSep->SetValue(false);
 	BoxSizer21->Add(CheckBoxGrpSep, 1, wxALL|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 2);
-	StaticBoxSizer2->Add(BoxSizer21, 1, wxALL|wxEXPAND|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 2);
+	StaticBoxSizer2->Add(BoxSizer21, 1, wxALL|wxEXPAND, 2);
 	BoxSizer9 = new wxBoxSizer(wxHORIZONTAL);
-	StaticText7 = new wxStaticText(this, ID_STATICTEXT7, _("&Lenth (Characters):"), wxDefaultPosition, wxDefaultSize, 0, _T("ID_STATICTEXT7"));
+	StaticText7 = new wxStaticText(this, ID_STATICTEXT7, _("&Length (Characters):"), wxDefaultPosition, wxDefaultSize, 0, _T("ID_STATICTEXT7"));
 	BoxSizer9->Add(StaticText7, 1, wxALL|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 2);
 	ChoiceLength = new wxChoice(this, ID_CHOICELENGTH, wxDefaultPosition, wxDefaultSize, 0, 0, 0, wxDefaultValidator, _T("ID_CHOICELENGTH"));
 	ChoiceLength->SetSelection( ChoiceLength->Append(_("(Automatic)")) );
 	BoxSizer9->Add(ChoiceLength, 1, wxALL|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 2);
-	StaticBoxSizer2->Add(BoxSizer9, 1, wxALL|wxEXPAND|wxALIGN_TOP|wxALIGN_CENTER_HORIZONTAL, 2);
+	StaticBoxSizer2->Add(BoxSizer9, 1, wxALL|wxEXPAND, 2);
 	BoxSizer10 = new wxBoxSizer(wxHORIZONTAL);
 	StaticText9 = new wxStaticText(this, ID_STATICTEXT9, _("&Alignment:"), wxDefaultPosition, wxDefaultSize, 0, _T("ID_STATICTEXT9"));
 	BoxSizer10->Add(StaticText9, 1, wxALL|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 2);
@@ -493,7 +504,7 @@ WXMEnumerationDialog::WXMEnumerationDialog(std::vector<ucs4_t>& seq, size_t& seq
 	ChoiceAlign->Append(_("Left"));
 	ChoiceAlign->Disable();
 	BoxSizer10->Add(ChoiceAlign, 1, wxALL|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 2);
-	StaticBoxSizer2->Add(BoxSizer10, 1, wxALL|wxEXPAND|wxALIGN_TOP|wxALIGN_CENTER_HORIZONTAL, 2);
+	StaticBoxSizer2->Add(BoxSizer10, 1, wxALL|wxEXPAND, 2);
 	BoxSizer11 = new wxBoxSizer(wxHORIZONTAL);
 	StaticText8 = new wxStaticText(this, ID_STATICTEXT8, _("&Padding:"), wxDefaultPosition, wxDefaultSize, 0, _T("ID_STATICTEXT8"));
 	BoxSizer11->Add(StaticText8, 1, wxALL|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 2);
@@ -502,30 +513,30 @@ WXMEnumerationDialog::WXMEnumerationDialog(std::vector<ucs4_t>& seq, size_t& seq
 	ChoicePadding->Append(_("0"));
 	ChoicePadding->Disable();
 	BoxSizer11->Add(ChoicePadding, 1, wxALL|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 2);
-	StaticBoxSizer2->Add(BoxSizer11, 1, wxALL|wxEXPAND|wxALIGN_TOP|wxALIGN_CENTER_HORIZONTAL, 2);
+	StaticBoxSizer2->Add(BoxSizer11, 1, wxALL|wxEXPAND, 2);
 	BoxSizer7 = new wxBoxSizer(wxHORIZONTAL);
 	StaticText4 = new wxStaticText(this, ID_STATICTEXT4, _("P&refix:"), wxDefaultPosition, wxDefaultSize, 0, _T("ID_STATICTEXT4"));
 	BoxSizer7->Add(StaticText4, 1, wxALL|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 2);
 	TextCtrlPrefix = new wxTextCtrl(this, ID_TEXTCTRLPREFIX, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator, _T("ID_TEXTCTRLPREFIX"));
 	TextCtrlPrefix->SetMaxLength(32);
 	BoxSizer7->Add(TextCtrlPrefix, 1, wxALL|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 2);
-	StaticBoxSizer2->Add(BoxSizer7, 1, wxALL|wxEXPAND|wxALIGN_TOP|wxALIGN_CENTER_HORIZONTAL, 2);
+	StaticBoxSizer2->Add(BoxSizer7, 1, wxALL|wxEXPAND, 2);
 	BoxSizer8 = new wxBoxSizer(wxHORIZONTAL);
 	StaticText5 = new wxStaticText(this, ID_STATICTEXT5, _("Po&stfix:"), wxDefaultPosition, wxDefaultSize, 0, _T("ID_STATICTEXT5"));
 	BoxSizer8->Add(StaticText5, 1, wxALL|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 2);
 	TextCtrlPostfix = new wxTextCtrl(this, ID_TEXTCTRLPOSTFIX, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator, _T("ID_TEXTCTRLPOSTFIX"));
 	TextCtrlPostfix->SetMaxLength(32);
 	BoxSizer8->Add(TextCtrlPostfix, 1, wxALL|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 2);
-	StaticBoxSizer2->Add(BoxSizer8, 1, wxALL|wxEXPAND|wxALIGN_TOP|wxALIGN_CENTER_HORIZONTAL, 2);
-	BoxSizer18->Add(StaticBoxSizer2, 0, wxALL|wxALIGN_TOP|wxALIGN_CENTER_HORIZONTAL, 5);
+	StaticBoxSizer2->Add(BoxSizer8, 1, wxALL|wxEXPAND, 2);
+	BoxSizer18->Add(StaticBoxSizer2, 0, wxALL|wxALIGN_CENTER_HORIZONTAL, 5);
 	BoxSizer19 = new wxBoxSizer(wxHORIZONTAL);
 	ButtonOK = new wxButton(this, wxID_OK, _("&OK"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator, _T("wxID_OK"));
 	ButtonOK->SetDefault();
-	BoxSizer19->Add(ButtonOK, 1, wxALL|wxALIGN_BOTTOM|wxALIGN_CENTER_HORIZONTAL, 5);
+	BoxSizer19->Add(ButtonOK, 1, wxALL|wxALIGN_BOTTOM, 5);
 	ButtonCancel = new wxButton(this, wxID_CANCEL, _("&Cancel"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator, _T("wxID_CANCEL"));
-	BoxSizer19->Add(ButtonCancel, 1, wxALL|wxALIGN_BOTTOM|wxALIGN_CENTER_HORIZONTAL, 5);
-	BoxSizer18->Add(BoxSizer19, 1, wxALL|wxALIGN_BOTTOM|wxALIGN_CENTER_HORIZONTAL, 2);
-	BoxSizer1->Add(BoxSizer18, 0, wxALL|wxEXPAND|wxALIGN_LEFT|wxALIGN_TOP, 0);
+	BoxSizer19->Add(ButtonCancel, 1, wxALL|wxALIGN_BOTTOM, 5);
+	BoxSizer18->Add(BoxSizer19, 1, wxALL|wxALIGN_CENTER_HORIZONTAL, 2);
+	BoxSizer1->Add(BoxSizer18, 0, wxALL|wxEXPAND, 0);
 	SetSizer(BoxSizer1);
 	BoxSizer1->Fit(this);
 	BoxSizer1->SetSizeHints(this);
@@ -603,17 +614,13 @@ void NumberingSystemConfig::DoInit()
 	AddData(i++,    wxT("arab"),    _("Arabic"),                        NumSysSharedPtr(new NumSysArabic("arab")));
 	AddData(i++,    wxT("armn"),    _("Armenian"),                      NumSysSharedPtr(new NumSysLimited("armn", 9999)));
 	AddData(i++,    wxT("beng"),    _("Bengali"),                       NumSysSharedPtr(new NumSysArabic("beng")));
-#if U_ICU_VERSION_MAJOR_NUM*10 + U_ICU_VERSION_MINOR_NUM > 44
 	AddData(i++,    wxT("hanidec"), _("Chinese Digits"),                NumSysSharedPtr(new NumSysHaniDec("hanidec")));
-#endif
 	AddData(i++,    wxT("hans"),    _("Chinese Simplified"),            NumSysSharedPtr(new NumSysChinese("hans")));
 	AddData(i++,    wxT("hansfin"), _("Chinese Simplified Financial"),  NumSysSharedPtr(new NumSysChinese("hansfin")));
 	AddData(i++,    wxT("hant"),    _("Chinese Traditional"),           NumSysSharedPtr(new NumSysChinese("hant")));
 	AddData(i++,    wxT("hantfin"), _("Chinese Traditional Financial"), NumSysSharedPtr(new NumSysChinese("hantfin")));
 	AddData(i++,    wxT("deva"),    _("Devanagari"),                    NumSysSharedPtr(new NumSysArabic("deva")));
-#if U_ICU_VERSION_MAJOR_NUM > 49
 	AddData(i++,    wxT("ethi"),    _("Ethiopic"),                      NumSysSharedPtr(new NumSysEthiopic("ethi")));
-#endif
 	AddData(i++,    wxT("geor"),    _("Georgian"),                      NumSysSharedPtr(new NumSysLimited("geor", 19999)));
 	AddData(i++,    wxT("grek"),    _("Greek"),                         NumSysSharedPtr(new NumSysLimited("grek", greekmax)));
 	AddData(i++,    wxT("gujr"),    _("Gujarati"),                      NumSysSharedPtr(new NumSysArabic("gujr")));
@@ -629,15 +636,11 @@ void NumberingSystemConfig::DoInit()
 	AddData(i++,    wxT("orya"),    _("Oriya"),                         NumSysSharedPtr(new NumSysArabic("orya")));
 	AddData(i++,    wxT("arabext"), _("Perso-Arabic"),                  NumSysSharedPtr(new NumSysArabic("arabext")));
 	AddData(i++,    wxT("taml"),    _("Tamil"),                         NumSysSharedPtr(new NumSysLimited("taml", 99999999)));
-#if U_ICU_VERSION_MAJOR_NUM*10 + U_ICU_VERSION_MINOR_NUM > 46
 	AddData(i++,    wxT("tamldec"), _("Tamil Digits"),                  NumSysSharedPtr(new NumSysArabic("tamldec")));
-#endif
 	AddData(i++,    wxT("telu"),    _("Telugu"),                        NumSysSharedPtr(new NumSysArabic("telu")));
 	AddData(i++,    wxT("tibt"),    _("Tibetan"),                       NumSysSharedPtr(new NumSysArabic("tibt")));
 	AddData(i++,    wxT("thai"),    _("Thai"),                          NumSysSharedPtr(new NumSysArabic("thai")));
-#if U_ICU_VERSION_MAJOR_NUM*10 + U_ICU_VERSION_MINOR_NUM > 48
 	AddData(i++,    wxT("vaii"),    _("Vai"),                           NumSysSharedPtr(new NumSysArabic("vaii")));
-#endif
 }
 
 bool CheckTextNumMin(const wxStaticText* label, const wxTextCtrl* txtctrl, int64_t minval, wxString& errmsg)
@@ -645,7 +648,11 @@ bool CheckTextNumMin(const wxStaticText* label, const wxTextCtrl* txtctrl, int64
 	wxString name = label->GetLabelText();
 	wxString txtnum = txtctrl->GetValue();
 	int64_t n = -1;
-	if (!txtnum.ToLongLong((wxLongLong_t*)&n, 10))
+	try
+	{
+		n = boost::lexical_cast<int64_t>(std::wstring(txtnum.wc_str()));
+	}
+	catch (boost::bad_lexical_cast&)
 	{
 		errmsg = wxString::Format(_("%s is Not a Number."), name.wc_str());
 		return false;
@@ -666,9 +673,14 @@ wxString GetSelectWXStr(wxChoice* choice)
 
 int64_t GetI64FromTextCtrl(const wxTextCtrl* txtctrl, int64_t defaultval=0)
 {
-	int64_t n = defaultval;
-	txtctrl->GetValue().ToLongLong((wxLongLong_t*)&n, 10);
-	return n;
+	try
+	{
+		return boost::lexical_cast<int64_t>(std::wstring(txtctrl->GetValue().wc_str()));
+	}
+	catch (boost::bad_lexical_cast&)
+	{}
+
+	return defaultval;
 }
 
 }// namespace wxm
@@ -781,7 +793,7 @@ void WXMEnumerationDialog::OnChoiceNumSysSelect(wxCommandEvent& event)
 	RadioButtonFullWidth->Enable(ns->HasFullwidth());
 
 	ChoicePadding->Select(0);
-	ChoicePadding->Enable(ns->ZeroPaddable());
+	AdjustChoicePadding(true);
 
 	CheckBoxGrpSep->SetValue(false);
 	CheckBoxGrpSep->Enable(ns->Groupable());
@@ -901,10 +913,6 @@ void WXMEnumerationDialog::OnRadioButtonBinSelect(wxCommandEvent& event)
 	OnBaseSelect('b');
 }
 
-#ifdef _MSC_VER
-# pragma warning( pop )
-#endif
-
 void WXMEnumerationDialog::OnRadioButtonUpperSelect(wxCommandEvent& event)
 {
 	m_numsys->SetLowercase(false);
@@ -918,3 +926,7 @@ void WXMEnumerationDialog::OnRadioButtonLowerSelect(wxCommandEvent& event)
 
 	Preview();
 }
+
+#ifdef _MSC_VER
+# pragma warning( pop )
+#endif

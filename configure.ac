@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
-AC_INIT([wxmedit], [2.9.9.3], [wxmedit@gmail.com])
+AC_INIT([wxmedit], [3.1], [wxmedit@gmail.com])
 AC_CONFIG_SRCDIR([src/wxmedit_app.cpp])
 AC_CONFIG_HEADER([config.h])
 AC_PREFIX_DEFAULT([/usr])
@@ -10,7 +10,7 @@ AC_PREFIX_DEFAULT([/usr])
 AM_INIT_AUTOMAKE([subdir-objects])
 
 AC_USE_SYSTEM_EXTENSIONS
-ALL_LINGUAS="de_DE es it_IT ja_JP pl_PL ru_RU zh_CN zh_TW"
+ALL_LINGUAS="de_DE es fr_FR it_IT ja_JP pl_PL ru_RU zh_CN zh_TW"
 AM_GNU_GETTEXT([external])
 AC_SUBST(ALL_LINGUAS)
 
@@ -85,16 +85,6 @@ AC_ARG_WITH(boost,
     [  --with-boost=PATH       use additional Boost library path,
                           otherwise use system include path],
     [CXXFLAGS="$CXXFLAGS -I$withval"])
-
-# option for Boost lib suffix
-BOOST_LIB_SUFFIX=-mt
-AC_ARG_WITH(boost-lib-suffix, 
-    [  --with-boost-lib-suffix=SUFFIX
-                          use specified Boost library file suffix,
-                          otherwise use '-mt'],
-    [BOOST_LIB_SUFFIX="$withval"])
-TESTLIBS="-lboost_unit_test_framework$BOOST_LIB_SUFFIX"
-AC_SUBST([TESTLIBS])
 
 # option for additional ICU lib
 ICUCONFIG=icu-config

@@ -2,7 +2,7 @@
 // vim:         ts=4 sw=4
 // Name:        wxm/recent_list.cpp
 // Description: Recent List
-// Copyright:   2013-2015  JiaYanwei   <wxmedit@gmail.com>
+// Copyright:   2013-2019  JiaYanwei   <wxmedit@gmail.com>
 // License:     GPLv3
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -59,6 +59,7 @@ bool wxFilePathRecentList::ItemEqual(const wxString& item1, const wxString& item
 	return wxm::FilePathEqual(item1, item2);
 }
 
+#if wxMAJOR_VERSION==2
 static const wxChar *s_MRUEntryFormat = wxT("&%d %s");
 
 static inline wxChar* MYcopystring(const wxString& s)
@@ -67,6 +68,7 @@ static inline wxChar* MYcopystring(const wxString& s)
 	copy[s.size()] = 0;
 	return (wxChar*)memcpy(copy, s.c_str(), s.size()*sizeof(wxChar));
 }
+#endif
 
 // Recent List management
 void wxRecentList::AddFileToHistory(const wxString& item)
@@ -164,12 +166,12 @@ void wxRecentList::AddFileToHistory(const wxString& item)
 	{
 		wxMenu * const menu = (wxMenu *)node->GetData();
 
-		if (!numItems && menu->GetMenuItemCount())
+		if (numItems == 0 && menu->GetMenuItemCount() != 0)
 			menu->AppendSeparator();
 
 		// label doesn't matter, it will be set below anyhow, but it can't
 		// be empty (this is supposed to indicate a stock item)
-		menu->Append(GetBaseId() + numItems, " ");
+		menu->Append(GetBaseId() + (int)numItems, " ");
 	}
 
 	// insert the new item in the beginning of the item history
@@ -188,7 +190,7 @@ void wxRecentList::AddFileToHistory(const wxString& item)
 		{
 			wxMenu * const menu = (wxMenu *)node->GetData();
 
-			menu->SetLabel(GetBaseId() + i, GetMRUEntryLabel(i, itemInMenu));
+			menu->SetLabel(GetBaseId() + (int)i, GetMRUEntryLabel((int)i, itemInMenu));
 		}
 	}
 #endif

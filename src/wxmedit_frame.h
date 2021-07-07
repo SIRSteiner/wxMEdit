@@ -2,7 +2,7 @@
 // vim:         ts=4 sw=4 expandtab
 // Name:        wxmedit_frame.h
 // Description: Main Frame of wxMEdit
-// Copyright:   2013-2015  JiaYanwei   <wxmedit@gmail.com>
+// Copyright:   2013-2019  JiaYanwei   <wxmedit@gmail.com>
 //              2005-2010  Alston Chen <madedit@gmail.com>
 // License:     GPLv3
 ///////////////////////////////////////////////////////////////////////////////
@@ -11,7 +11,7 @@
 #define _WXMEDIT_FRAME_H_
 
 #include "wxm/def.h"
-#include "wxm/encoding/encoding_def.h"
+#include "xm/encoding/encoding_def.h"
 #include "wxm/recent_list.h"
 #include "wxm/status_bar.h"
 #include "wxm/utils.h"
@@ -127,6 +127,8 @@ public:
     void OnUpdateUI_MenuEditCopyAsHexString(wxUpdateUIEvent& event);
     void OnUpdateUI_MenuEdit_InsertEnumeration(wxUpdateUIEvent& event);
 
+    void OnUpdateUI_MenuEdit_Column(wxUpdateUIEvent& event);
+
     void OnUpdateUI_MenuIndent(wxUpdateUIEvent& event);
     void OnUpdateUI_MenuComment(wxUpdateUIEvent& event);
 
@@ -225,6 +227,8 @@ public:
     void OnEditSpaceToTab(wxCommandEvent& event);
     void OnEditTrimTrailingSpaces(wxCommandEvent& event);
     void OnEditInsertEnumeration(wxCommandEvent& event);
+    void OnEditColumnAlign(wxCommandEvent& event);
+    void OnEditColumnPaste(wxCommandEvent& event);
 
     void OnSearchFind(wxCommandEvent& event);
     void OnSearchFindNext(wxCommandEvent& event);
@@ -303,7 +307,7 @@ public:
 private:
     bool m_PageClosing; // prevent from reentry of CloseFile(), OnNotebookPageClosing()
 
-    typedef std::map<wxm::WXMEncodingGroupID, wxMenu*> EncGrps;
+    typedef std::map<xm::EncodingGroupID, wxMenu*> EncGrps;
     EncGrps m_encgrps;
 
 public:
@@ -405,6 +409,9 @@ enum { // menu id
     menuGotoNextBookmark,
     menuGotoPreviousBookmark,
     menuClearAllBookmarks,
+    menuColumn,
+    menuColumnAlign,
+    menuColumnPaste,
     menuSort,
     menuSortAscending,
     menuSortDescending,

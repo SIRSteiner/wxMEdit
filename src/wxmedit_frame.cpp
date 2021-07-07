@@ -2,7 +2,7 @@
 // vim:         ts=4 sw=4 expandtab
 // Name:        wxm_edit_frame.cpp
 // Description: Main Frame of wxMEdit
-// Copyright:   2013-2015  JiaYanwei   <wxmedit@gmail.com>
+// Copyright:   2013-2019  JiaYanwei   <wxmedit@gmail.com>
 //              2005-2010  Alston Chen <madedit@gmail.com>
 // License:     GPLv3
 ///////////////////////////////////////////////////////////////////////////////
@@ -55,6 +55,8 @@
 # pragma warning( pop )
 #endif
 
+#include <unicode/uchar.h>
+
 #include <boost/foreach.hpp>
 #include <boost/assign/list_of.hpp>
 #include <boost/scoped_ptr.hpp>
@@ -106,8 +108,12 @@
 #define copy_xpm_idx (cut_xpm_idx+1)
 #include "../images/paste.xpm"
 #define paste_xpm_idx (copy_xpm_idx+1)
+#include "../images/delete.xpm"
+#define delete_xpm_idx (paste_xpm_idx+1)
+#include "../images/olist.xpm"
+#define olist_xpm_idx (delete_xpm_idx+1)
 #include "../images/indent.xpm"
-#define indent_xpm_idx (paste_xpm_idx+1)
+#define indent_xpm_idx (olist_xpm_idx+1)
 #include "../images/unindent.xpm"
 #define unindent_xpm_idx (indent_xpm_idx+1)
 #include "../images/comment.xpm"
@@ -152,8 +158,11 @@
 #include "../images/hexmode.xpm"
 #define hexmode_xpm_idx (columnmode_xpm_idx+1)
 
-#include "../images/wxmedit_16x15.xpm"
-#define wxmedit_16x15_xpm_idx (hexmode_xpm_idx+1)
+#include "../images/options.xpm"
+#define options_xpm_idx (hexmode_xpm_idx+1)
+
+#include "../images/wxmedit0_24x24.xpm"
+#define wxmedit0_24x24_xpm_idx (options_xpm_idx+1)
 
 #undef static
 
@@ -170,7 +179,7 @@ const wxString g_wxMEdit_License_URL(wxT("http://www.gnu.org/licenses/gpl-3.0.ht
 wxString g_wxMEdit_About_URL = g_wxMEdit_Homepage_URL;
 
 const static wxString s_wxMEdit_License(
-wxT("Copyright (C) 2013-2015  JiaYanwei <wxmedit@gmail.com>\n")
+wxT("Copyright (C) 2013-2019  JiaYanwei <wxmedit@gmail.com>\n")
 wxT("Copyright (C) 2005-2010  Alston Chen <madedit@gmail.com>\n")
 wxT("\n")
 wxT("This program is free software: you can redistribute it and/or modify ")
@@ -190,6 +199,7 @@ wxT("GNU General Public License for more details.\n")
 typedef std::vector<std::pair<wxString, wxString> > CreditsList;
 const static CreditsList s_wxMEdit_Credits = boost::assign::pair_list_of
         (s_("JiaYanwei"),                   _("Current maintainer of wxMEdit"))
+        (s_("j\u00E9r\u00F4me KASPER"),     _("Current maintainer of wxMEdit"))
         (s_("Alston Chen"),                 _("Creator of MadEdit"))
         (s_("Tilt"),                        _("Translator for Japanese"))
         (s_("Angelo Contardi"),             _("Translator for Italian"))
@@ -197,14 +207,19 @@ const static CreditsList s_wxMEdit_Credits = boost::assign::pair_list_of
         (s_("Denir Li"),                    _("Translator for Traditional Chinese"))
         (s_("Vincent_TW"),                  _("Translator for Traditional Chinese"))
         (s_("Shamil Bikineyev"),            _("Translator for Russian"))
+        (s_("\u0421\u0442\u0430\u043d\u0438\u0441\u043b\u0430\u0432 \u0411\u0443\u0434\u0438\u043d\u043e\u0432"),
+                                            _("Translator for Russian"))
         (s_("Ronny Steiner"),               _("Translator for German"))
         (s_("Adam Massalski"),              _("Translator for Polish"))
+        (s_("j\u00E9r\u00F4me KASPER"),     _("Translator for French"))
         (s_("hobbyscripter"),               _("Patch submitter for wxMEdit/MadEdit"))
         (s_("Huaren Zhong"),                _("Patch submitter for wxMEdit/MadEdit"))
         (s_("Gospodin Gyurov"),             _("Patch submitter for wxMEdit/MadEdit"))
         (s_("cfreeer"),                     _("Patch submitter for wxMEdit/MadEdit"))
         (s_("Nagy Gabor"),                  _("Patch submitter for wxMEdit/MadEdit"))
+        (s_("LinXiaoHui"),                  _("Patch submitter for wxMEdit/MadEdit"))
         (s_("codestation"),                 _("Creator of wxmedit package in AUR"))
+        (s_("Jingbei Li"),                  _("Maintainer of wxmedit package in AUR"))
         (s_("Micha\u0142 Zi\u0105bkowski"), _("Creator of Gentoo package wxmedit"))
     ;
 #undef s_
@@ -231,6 +246,7 @@ wxMenu *g_Menu_Help = nullptr;
 wxMenu *g_Menu_File_CloseMore = nullptr;
 wxMenu *g_Menu_File_CopyPath = nullptr;
 wxMenu *g_Menu_File_RecentFiles = nullptr;
+wxMenu *g_Menu_Edit_Column = nullptr;
 wxMenu *g_Menu_Edit_Sort = nullptr;
 wxMenu *g_Menu_Edit_Advanced = nullptr;
 wxMenu *g_Menu_View_Encoding = nullptr;
@@ -259,37 +275,47 @@ wxAcceleratorEntry g_AccelFindNext, g_AccelFindPrev;
 //---------------------------------------------------------------------------
 
 // for RestoreCaretPos
-class FileCaretPosManager
+struct FileCaretPosManager
 {
+    struct PosData
+    {
+        wxFileOffset pos;
+        wxString encoding;
+        wxString fontname;
+        int fontsize;
+        wxString hex_fontname;
+        int hex_fontsize;
+        bool hexmode;
+
+        PosData() : pos(0), fontsize(0), hex_fontsize(0), hexmode(false) {}
+    };
+
+private:
     int max_count;
 
     struct FilePosData
     {
         wxString name;
-        wxFileOffset pos;
         unsigned long hash; // hash value of filename
-        wxString encoding;
-        wxString fontname;
-        int fontsize;
+        PosData data;
 
-        FilePosData(const wxString &n, const wxLongLong_t &p, unsigned long h, const wxString &e, const wxString &fn, int fs)
-            : name(n), pos(p), hash(h), encoding(e), fontname(fn), fontsize(fs)
+        FilePosData(const wxString& n, unsigned long h, const PosData& d)
+            : name(n), hash(h), data(d)
         {}
-        FilePosData()
-            : pos(0), fontsize(0)
-        {}
+
+        FilePosData(): hash(0) {}
     };
     std::list<FilePosData> files;
 
 public:
     FileCaretPosManager() : max_count(40) {}
 
-    void Add(const wxString &name, const wxFileOffset &pos, const wxString &encoding, const wxString &fontname, int fontsize)
+    void Add(const wxString &name, const PosData& data)
     {
         unsigned long hash = wxm::FilePathHash(name);
         if(files.size()==0)
         {
-            files.push_back(FilePosData(name, pos, hash, encoding, fontname, fontsize));
+            files.push_back(FilePosData(name, hash, data));
         }
         else
         {
@@ -306,14 +332,11 @@ public:
 
             if(it == itend)
             {
-                files.push_front(FilePosData(name, pos, hash, encoding, fontname, fontsize));
+                files.push_front(FilePosData(name, hash, data));
             }
             else
             {
-                it->pos = pos;
-                it->encoding = encoding;
-                it->fontname = fontname;
-                it->fontsize = fontsize;
+                it->data = data;
 
                 files.push_front(*it);
                 files.erase(it);
@@ -324,20 +347,24 @@ public:
             files.pop_back();
         }
     }
+
     void Add(wxm::InFrameWXMEdit* wxmedit)
     {
-        if (wxmedit == nullptr) return;
+        if (wxmedit == nullptr)
+            return;
 
         wxString name = wxmedit->GetFileName();
-        if(!name.IsEmpty())
-        {
-            wxString fontname;
-            int fontsize;
-            wxmedit->GetTextFont(fontname, fontsize);
-            wxFileOffset pos = wxmedit->GetCaretPosition();
-            Add(name, pos, wxmedit->GetEncodingName(), fontname, fontsize);
-        }
+        if (name.IsEmpty())
+            return;
+
+        PosData data;
+        wxmedit->GetTextFont(data.fontname, data.fontsize);
+        wxmedit->GetHexFont(data.hex_fontname, data.hex_fontsize);
+        data.pos = wxmedit->GetCaretPosition();
+        data.hexmode = (wxmedit->GetEditMode() == emHexMode);
+        Add(name, data);
     }
+
     void Save(wxConfigBase *cfg)
     {
         cfg->Write(wxT("MaxCount"), max_count);
@@ -347,110 +374,94 @@ public:
         int idx=0, count=int(files.size());
         while(idx < count)
         {
-            text = wxLongLong(it->pos).ToString();
+            text = wxLongLong(it->data.pos).ToString();
             text += wxT("|");
             text += it->name;
             text += wxT("|");
-            text += it->encoding;
+            text += it->data.encoding;
             text += wxT("|");
-            text += it->fontname;
+            text += it->data.fontname;
             text += wxT("|");
-            text += wxLongLong(it->fontsize).ToString();
+            text += wxLongLong(it->data.fontsize).ToString();
+            text += wxT("|");
+            text += wxLongLong(int(it->data.hexmode)).ToString();
+            text += wxT("|");
+            text += it->data.hex_fontname;
+            text += wxT("|");
+            text += wxLongLong(it->data.hex_fontsize).ToString();
             cfg->Write(entry + (wxString()<<(idx+1)), text);
             ++idx;
             ++it;
         }
     }
+
     void Load(wxConfigBase *cfg)
     {
         cfg->Read(wxT("MaxCount"), &max_count);
 
-        FilePosData fpdata;
-        wxString entry(wxT("file")), text;
-        int idx=1;
-        while(idx<=max_count && cfg->Read(entry + (wxString()<<idx), &text))
+        wxString entry(wxT("file"));
+
+        for (int idx = 1; idx<=max_count; ++idx)
         {
-            int p = text.Find(wxT("|"));
-            if(p != wxNOT_FOUND)
-            {
-                fpdata.pos = 0;
-                fpdata.fontsize = 0;
-                fpdata.encoding.Empty();
+            wxString text;
+            if (!cfg->Read(entry + (wxString() << idx), &text))
+                break;
 
-                wxInt64 i64;
-                if(StrToInt64(text.Left(p), i64))
-                {
-                    fpdata.pos = i64;
-                    text = text.Right(text.Len() - (p+1));
+            if (text.Find(wxT("|")) == wxNOT_FOUND)
+                continue;
 
-                    p = text.Find(wxT("|"));
-                    if(p != wxNOT_FOUND)
-                    {
-                        fpdata.name = text.Left(p);
-                        text = text.Right(text.Len() - (p+1));
+            FilePosData fpdata;
 
-                        p = text.Find(wxT("|"));
-                        if(p != wxNOT_FOUND)
-                        {
-                            fpdata.encoding = text.Left(p);
-                            text = text.Right(text.Len() - (p+1));
+            wxStringTokenizer tkz(text, wxT("|"));
 
-                            p = text.Find(wxT("|"));
-                            if(p != wxNOT_FOUND)
-                            {
-                                fpdata.fontname = text.Left(p);
-                                text = text.Right(text.Len() - (p+1));
+            wxInt64 i64 = 0;
+            if (StrToInt64(tkz.GetNextToken(), i64))
+                fpdata.data.pos = i64;
 
-                                if(StrToInt64(text, i64))
-                                {
-                                    fpdata.fontsize = (int)i64;
-                                }
-                            }
-                            else
-                            {
-                                fpdata.fontname = text;
-                            }
-                        }
-                        else
-                        {
-                            fpdata.encoding = text;
-                        }
-                    }
-                    else // old format
-                    {
-                        fpdata.name = text;
-                    }
+            if (tkz.HasMoreTokens())
+                fpdata.name = tkz.GetNextToken();
 
-                    fpdata.hash = wxm::FilePathHash(fpdata.name);
-                    files.push_back(fpdata);
-                }
-            }
-            ++idx;
+            if (tkz.HasMoreTokens())
+                fpdata.data.encoding = tkz.GetNextToken();
+
+            if (tkz.HasMoreTokens())
+                fpdata.data.fontname = tkz.GetNextToken();
+
+            if (tkz.HasMoreTokens() && StrToInt64(tkz.GetNextToken(), i64))
+                fpdata.data.fontsize = int(i64);
+
+            if (tkz.HasMoreTokens() && StrToInt64(tkz.GetNextToken(), i64))
+                fpdata.data.hexmode = (i64!=0);
+
+            if (tkz.HasMoreTokens())
+                fpdata.data.hex_fontname = tkz.GetNextToken();
+
+            if (tkz.HasMoreTokens() && StrToInt64(tkz.GetNextToken(), i64))
+                fpdata.data.hex_fontsize = int(i64);
+
+            fpdata.hash = wxm::FilePathHash(fpdata.name);
+            files.push_back(fpdata);
         }
     }
-    wxFileOffset GetRestoreData(const wxString &name, wxString &encoding, wxString &fontname, int &fontsize)
+
+    void GetRestoreData(const wxString& name, PosData& data)
     {
+        if (files.size() == 0)
+            return;
+
         unsigned long hash = wxm::FilePathHash(name);
-        wxFileOffset pos = 0;
-        fontsize = 0;
-        if(files.size() != 0)
+
+        std::list<FilePosData>::iterator it = files.begin();
+        std::list<FilePosData>::iterator itend = files.end();
+        do
         {
-            std::list<FilePosData>::iterator it = files.begin();
-            std::list<FilePosData>::iterator itend = files.end();
-            do
-            {
-                if(it->hash == hash && wxm::FilePathEqual(it->name, name))
-                {
-                    pos = it->pos;
-                    encoding = it->encoding;
-                    fontname = it->fontname;
-                    fontsize = it->fontsize;
-                    break;
-                }
-            }
-            while(++it != itend);
+            if (it->hash != hash || !wxm::FilePathEqual(it->name, name))
+                continue;
+
+            data = it->data;
+            break;
         }
-        return pos;
+        while(++it != itend);
     }
 };
 FileCaretPosManager g_FileCaretPosManager;
@@ -578,7 +589,7 @@ std::list<wxMadAuiNotebook::PageData> wxMadAuiNotebook::GetPagesList()
                 }
             }
 
-            pages_list.insert(it, PageData(pt.x, pt.y, idx, wxmedit, i));
+            pages_list.insert(it, PageData(pt.x, pt.y, idx, wxmedit, (int)i));
         }
     }
 
@@ -683,7 +694,9 @@ void OnReceiveMessage(const wchar_t *msg, size_t size)
 #else
     //g_MainFrame->Show(true);
     g_MainFrame->Raise();
+# if wxMAJOR_VERSION == 2
     g_MainFrame->RequestUserAttention();//wxUSER_ATTENTION_ERROR);
+# endif
     g_MainFrame->SetFocus();
 #endif
 
@@ -692,9 +705,7 @@ void OnReceiveMessage(const wchar_t *msg, size_t size)
     wxm::FileList filelist(msg);
 
     BOOST_FOREACH (const wxm::FileList::FileDesc& fdesc, filelist.List())
-    {
         g_MainFrame->OpenFile(fdesc.file, false, fdesc.bmklinenums);
-    }
 }
 
 // return true for name; false for title
@@ -855,6 +866,7 @@ BEGIN_EVENT_TABLE(MadEditFrame,wxFrame)
 	EVT_UPDATE_UI(menuSpaceToTab, MadEditFrame::OnUpdateUI_MenuEdit_CheckSelSize)
 	EVT_UPDATE_UI(menuTrimTrailingSpaces, MadEditFrame::OnUpdateUI_Menu_CheckTextFile)
 	EVT_UPDATE_UI(menuInsertEnumeration, MadEditFrame::OnUpdateUI_Menu_CheckTextFile)
+	EVT_UPDATE_UI(menuColumn, MadEditFrame::OnUpdateUI_MenuEdit_Column)
 	// search
 	EVT_UPDATE_UI(menuFind, MadEditFrame::OnUpdateUI_MenuFile_CheckCount)
 	EVT_UPDATE_UI(menuFindNext, MadEditFrame::OnUpdateUI_MenuFile_CheckCount)
@@ -969,6 +981,8 @@ BEGIN_EVENT_TABLE(MadEditFrame,wxFrame)
 	EVT_MENU(menuSpaceToTab, MadEditFrame::OnEditSpaceToTab)
 	EVT_MENU(menuTrimTrailingSpaces, MadEditFrame::OnEditTrimTrailingSpaces)
 	EVT_MENU(menuInsertEnumeration, MadEditFrame::OnEditInsertEnumeration)
+	EVT_MENU(menuColumnAlign, MadEditFrame::OnEditColumnAlign)
+	EVT_MENU(menuColumnPaste, MadEditFrame::OnEditColumnPaste)
 	// search
 	EVT_MENU(menuFind, MadEditFrame::OnSearchFind)
 	EVT_MENU(menuFindNext, MadEditFrame::OnSearchFindNext)
@@ -1103,8 +1117,8 @@ CommandData CommandTable[]=
     { ecCut,            1, menuCut,                      wxT("menuCut"),                      _("Cu&t"),                                    wxT("Ctrl-X"),       wxITEM_NORMAL,    cut_xpm_idx,       0,                     _("Cut the selection and put it on the Clipboard")},
     { ecCopy,           1, menuCopy,                     wxT("menuCopy"),                     _("&Copy"),                                   wxT("Ctrl-C"),       wxITEM_NORMAL,    copy_xpm_idx,      0,                     _("Copy the selection and put it on the Clipboard")},
     { ecPaste,          1, menuPaste,                    wxT("menuPaste"),                    _("&Paste"),                                  wxT("Ctrl-V"),       wxITEM_NORMAL,    paste_xpm_idx,     0,                     _("Insert data from the Clipboard")},
-    { ecPasteOvr,       1, menuPasteOvr,                 wxT("menuPasteOvr"),                 _("Paste with Over&writing"),                wxT(""),             wxITEM_NORMAL,    -1,                0,                     _("Overwrite data from the Clipboard")},
-    { ecDelete,         1, menuDelete,                   wxT("menuDelete"),                   _("&Delete"),                                 wxT("DEL"),          wxITEM_NORMAL,    -1,                0,                     _("Delete data")},
+    { ecPasteOvr,       1, menuPasteOvr,                 wxT("menuPasteOvr"),                 _("Paste with Over&writing"),                 wxT(""),             wxITEM_NORMAL,    -1,                0,                     _("Overwrite data from the Clipboard")},
+    { ecDelete,         1, menuDelete,                   wxT("menuDelete"),                   _("&Delete"),                                 wxT("DEL"),          wxITEM_NORMAL,    delete_xpm_idx,   0,                     _("Delete data")},
     { 0,                1, 0,                            0,                                   0,                                            0,                   wxITEM_SEPARATOR, -1,                0,                     0},
     { ecCutLine,        1, menuCutLine,                  wxT("menuCutLine"),                  _("Cut L&ine"),                               wxT("Ctrl-Shift-L"), wxITEM_NORMAL,    -1,                0,                     _("Cut the selected lines and put it on the Clipboard")},
 
@@ -1129,7 +1143,12 @@ CommandData CommandTable[]=
                                                                                                                                                                  wxITEM_NORMAL,    -1,                0,                     _("Insert a Tab char at current position")},
 
     { ecInsertDateTime, 1, menuInsertDateTime,           wxT("menuInsertDateTime"),           _("Insert Dat&e and Time"),                   wxT("F7"),           wxITEM_NORMAL,    -1,                0,                     _("Insert date and time at current position")},
-    { 0,                1, menuInsertEnumeration,        wxT("menuInsertEnumeration"),        _("Insert &Ordered Sequence..."),             wxT(""),             wxITEM_NORMAL,    -1,                0,                     _("Insert ordered sequence with certain format in specified numbering system")},
+    { 0,                1, menuInsertEnumeration,        wxT("menuInsertEnumeration"),        _("Insert &Ordered Sequence..."),             wxT("Ctrl-Alt-N"),   wxITEM_NORMAL,    olist_xpm_idx,     0,                     _("Insert ordered sequence with certain format in specified numbering system")},
+
+    { 0,                1, 0,                            0,                                   0,                                            0,                   wxITEM_SEPARATOR, -1,                0,                     0 },
+    { 0,                1, menuColumn,                   wxT("menuColumn"),                   _("Colum&n"),                                  0,                   wxITEM_NORMAL,    -1,                &g_Menu_Edit_Column,   0 },
+    { 0,                2, menuColumnAlign,              wxT("menuColumnAlign"),              _("Column &Align"),                           wxT("Alt-DEL"),      wxITEM_NORMAL,    -1,                0,                     _("Delete spaces at the right of column selection") },
+    { 0,                2, menuColumnPaste,              wxT("menuColumnPaste"),              _("Column &Paste"),                           wxT("Alt-INS"),      wxITEM_NORMAL,    -1,                0,                     _("Paste in each line of column selection") },
 
     { 0,                1, 0,                            0,                                   0,                                            0,                   wxITEM_SEPARATOR, -1,                0,                     0},
     { 0,                1, menuAdvanced,                 wxT("menuAdvanced"),                 _("Ad&vanced"),                               0,                   wxITEM_NORMAL,    -1,                &g_Menu_Edit_Advanced, 0},
@@ -1357,7 +1376,7 @@ CommandData CommandTable[]=
 
     // Tools
     { 0, 0, 0, 0, _("&Tools"), 0, wxITEM_NORMAL, 0, &g_Menu_Tools, 0},
-    { 0,               1, menuOptions,            wxT("menuOptions"),            _("&Options..."),                                   wxT(""),       wxITEM_NORMAL,    -1, 0,                                _("Change the configuration")},
+    { 0,               1, menuOptions,            wxT("menuOptions"),            _("&Options..."),                                   wxT(""),       wxITEM_NORMAL,    options_xpm_idx, 0,                   _("Change the configuration")},
     { 0,               1, menuHighlighting,       wxT("menuHighlighting"),       _("&Syntax Highlighting Settings..."),              wxT(""),       wxITEM_NORMAL,    -1, 0,                                _("Change syntax highlighting settings")},
 #ifdef __WXMSW__
     { 0,               1, menuFileAssociation,    wxT("menuFileAssociation"),    _("&File Type Associations..."),                    wxT(""),       wxITEM_NORMAL,    -1, 0,                                _("Change file type associations")},
@@ -1368,13 +1387,13 @@ CommandData CommandTable[]=
     { 0,               2, menuToggleBOM,          wxT("menuToggleBOM"),          _("Add/Remove BOM"),                                wxT(""),       wxITEM_NORMAL,    -1, 0,                                _("Add/Remove Unicode BOM")},
     { 0,               1, 0,                      0,                             0,                                                  0,             wxITEM_SEPARATOR, -1, 0,                                0},
     { 0,               1, menuNewLineChar,        wxT("menuNewLineChar"),        _("NewLine Char (File Format): "),                  0,             wxITEM_NORMAL,    -1, &g_Menu_Tools_NewLineChar,        0},
-    { 0,               2, menuConvertToDOS,       wxT("menuConvertToDOS"),       _("Convert To CRLF/0D0A (&DOS)"),                   wxT(""),       wxITEM_NORMAL,    -1, 0,                                _("Convert the file format to DOS format")},
-    { 0,               2, menuConvertToMAC,       wxT("menuConvertToMAC"),       _("Convert To CR/0D (&MAC)"),                       wxT(""),       wxITEM_NORMAL,    -1, 0,                                _("Convert the file format to MAC format")},
-    { 0,               2, menuConvertToUNIX,      wxT("menuConvertToUNIX"),      _("Convert To LF/0A (&UNIX)"),                      wxT(""),       wxITEM_NORMAL,    -1, 0,                                _("Convert the file format to UNIX format")},
+    { 0,               2, menuConvertToDOS,       wxT("menuConvertToDOS"),       _("Convert To CRLF/0D0A (Windows/&DOS)"),           wxT(""),       wxITEM_NORMAL,    -1, 0,                                _("Convert the file format to Windows/DOS format")},
+    { 0,               2, menuConvertToMAC,       wxT("menuConvertToMAC"),       _("Convert To CR/0D (Classic &Mac OS)"),            wxT(""),       wxITEM_NORMAL,    -1, 0,                                _("Convert the file format to classic Mac OS format")},
+    { 0,               2, menuConvertToUNIX,      wxT("menuConvertToUNIX"),      _("Convert To LF/0A (&UNIX/macOS)"),                wxT(""),       wxITEM_NORMAL,    -1, 0,                                _("Convert the file format to UNIX/macOS format")},
     { 0,               1, menuInsertNewLineChar,  wxT("menuInsertNewLineChar"),  _("Press Enter to Insert NewLine Char: "),          0,             wxITEM_NORMAL,    -1, &g_Menu_Tools_InsertNewLineChar,  0},
-    { 0,               2, menuInsertDOS,          wxT("menuInsertDOS"),          _("Insert CRLF/0D0A (&DOS)"),                       wxT(""),       wxITEM_NORMAL,    -1, 0,                                _("Insert CR&LF chars when pressing Enter key")},
-    { 0,               2, menuInsertMAC,          wxT("menuInsertMAC"),          _("Insert CR/0D (&MAC)"),                           wxT(""),       wxITEM_NORMAL,    -1, 0,                                _("Insert CR char when pressing Enter key")},
-    { 0,               2, menuInsertUNIX,         wxT("menuInsertUNIX"),         _("Insert LF/0A (&UNIX)"),                          wxT(""),       wxITEM_NORMAL,    -1, 0,                                _("Insert LF char when pressing Enter key")},
+    { 0,               2, menuInsertDOS,          wxT("menuInsertDOS"),          _("Insert CRLF/0D0A (Windows/&DOS)"),               wxT(""),       wxITEM_NORMAL,    -1, 0,                                _("Insert CR&LF chars when pressing Enter key")},
+    { 0,               2, menuInsertMAC,          wxT("menuInsertMAC"),          _("Insert CR/0D (Classic &Mac OS)"),                wxT(""),       wxITEM_NORMAL,    -1, 0,                                _("Insert CR char when pressing Enter key")},
+    { 0,               2, menuInsertUNIX,         wxT("menuInsertUNIX"),         _("Insert LF/0A (&UNIX/macOS)"),                    wxT(""),       wxITEM_NORMAL,    -1, 0,                                _("Insert LF char when pressing Enter key")},
     { 0,               1, 0,                      0,                             0,                                                  0,             wxITEM_SEPARATOR, -1, 0,                                0},
     { 0,               1, menuConvertEncoding,    wxT("menuConvertEncoding"),    _("Convert File &Encoding..."),                     0,             wxITEM_NORMAL,    -1, 0,                                _("Convert to the specified encoding")},
     { 0,               1, 0,                      0,                             0,                                                  0,             wxITEM_SEPARATOR, -1, 0,                                0},
@@ -1402,7 +1421,7 @@ CommandData CommandTable[]=
     // Help
     { 0, 0, 0, 0, _("&Help"), 0, wxITEM_NORMAL, 0, &g_Menu_Help, 0},
     { 0, 1, menuCheckUpdates, wxT("menuCheckUpdates"), _("&Check for updates..."), wxT(""),       wxITEM_NORMAL, -1,                    0, _("Check for new versions of wxMEdit")},
-    { 0, 1, menuAbout,       wxT("menuAbout"),       _("&About wxMEdit..."),          wxT(""),       wxITEM_NORMAL, wxmedit_16x15_xpm_idx, 0, _("Show about dialog")},
+    { 0, 1, menuAbout,       wxT("menuAbout"),       _("&About wxMEdit..."),          wxT(""),       wxITEM_NORMAL, wxmedit0_24x24_xpm_idx, 0, _("Show about dialog")},
     // end menu
 
     // begin editor
@@ -1540,7 +1559,7 @@ MadEditFrame::MadEditFrame( wxWindow *parent, wxWindowID id, const wxString &tit
     m_NewFileCount=0;
     m_Config=wxConfigBase::Get(false);
 
-    wxm::WXMEncodingManager::Instance().InitEncodings();
+    xm::EncodingManager::Instance().InitEncodings();
 
     MadSyntax::SetAttributeFilePath(wxm::AppPath::Instance().HomeDir() + wxT("syntax/"));
 
@@ -1579,9 +1598,9 @@ void MadEditFrame::EncodingGroupMenuAppend(ssize_t idx, const wxString& text, si
     static int i = 0;
 
     int itemid = menuEncoding1 + int(idx);
-    wxm::WXMEncodingManager& encmgr = wxm::WXMEncodingManager::Instance();
-    std::vector<wxm::WXMEncodingGroupID> vec = encmgr.GetEncodingGroups(idx);
-    BOOST_FOREACH(wxm::WXMEncodingGroupID gid, vec)
+    xm::EncodingManager& encmgr = xm::EncodingManager::Instance();
+    std::vector<xm::EncodingGroupID> vec = encmgr.GetEncodingGroups(idx);
+    BOOST_FOREACH(xm::EncodingGroupID gid, vec)
     {
         EncGrps::iterator it = m_encgrps.find(gid);
         if (it == m_encgrps.end())
@@ -1589,7 +1608,7 @@ void MadEditFrame::EncodingGroupMenuAppend(ssize_t idx, const wxString& text, si
             wxMenu* menu = new wxMenu();
             it = m_encgrps.insert(std::make_pair(gid, menu)).first;
             size_t pos = g_Menu_View_Encoding->GetMenuItemCount() - rsv_cnt - 1;
-            g_Menu_View_Encoding->Insert(pos, menuEncodingGroup1 + i + rsv_cnt, encmgr.EncodingGroupToName(gid), menu);
+            g_Menu_View_Encoding->Insert(pos, menuEncodingGroup1 + i + (int)rsv_cnt, encmgr.EncodingGroupToName(gid).c_str(), menu);
         }
 
         ++i;
@@ -1600,16 +1619,16 @@ void MadEditFrame::EncodingGroupMenuAppend(ssize_t idx, const wxString& text, si
 
 size_t MadEditFrame::ReserveEncodingGrupMenus()
 {
-    wxm::WXMEncodingManager& encmgr = wxm::WXMEncodingManager::Instance();
+    xm::EncodingManager& encmgr = xm::EncodingManager::Instance();
 
-    std::vector<wxm::WXMEncodingGroupID> reserve_grps =
-        boost::assign::list_of(wxm::ENCG_ISO8859)(wxm::ENCG_WINDOWS)(wxm::ENCG_OEM)(wxm::ENCG_DEFAULT);
+    std::vector<xm::EncodingGroupID> reserve_grps =
+        boost::assign::list_of(xm::ENCG_ISO8859)(xm::ENCG_WINDOWS)(xm::ENCG_OEM)(xm::ENCG_DEFAULT);
 
     size_t i = 0;
-    BOOST_FOREACH(wxm::WXMEncodingGroupID gid, reserve_grps)
+    BOOST_FOREACH(xm::EncodingGroupID gid, reserve_grps)
     {
         wxMenu* menu = new wxMenu();
-        g_Menu_View_Encoding->Insert(i, menuEncodingGroup1 + i, encmgr.EncodingGroupToName(gid), menu);
+        g_Menu_View_Encoding->Insert(i, menuEncodingGroup1 + (int)i, encmgr.EncodingGroupToName(gid).c_str(), menu);
         m_encgrps[gid] = menu;
         ++i;
     }
@@ -1619,14 +1638,14 @@ size_t MadEditFrame::ReserveEncodingGrupMenus()
 
 void MadEditFrame::InitEncodingMenus()
 {
-    wxm::WXMEncodingManager& encmgr = wxm::WXMEncodingManager::Instance();
+    xm::EncodingManager& encmgr = xm::EncodingManager::Instance();
 
     size_t rsv_cnt = ReserveEncodingGrupMenus();
 
-    size_t cnt=wxm::WXMEncodingManager::Instance().GetEncodingsCount();
+    size_t cnt=xm::EncodingManager::Instance().GetEncodingsCount();
     for(size_t i=0; i<cnt; ++i)
     {
-        wxString enc=wxString(wxT('['))+ encmgr.GetEncodingName(i) + wxT("] ");
+        wxString enc=wxString(wxT('['))+ encmgr.GetEncodingName(i).c_str() + wxT("] ");
         wxString des=wxGetTranslation(encmgr.GetEncodingDescription(i).c_str());
 
         EncodingGroupMenuAppend(i, enc+des, rsv_cnt);
@@ -1668,9 +1687,10 @@ void MadEditFrame::CreateGUIControls()
 {
     m_wxmstatusbar.Init(this, ID_WXSTATUSBAR1);
 
-    WxToolBar1 = new wxToolBar(this, ID_WXTOOLBAR1, wxPoint(0,0), wxSize(392,29));
+    WxToolBar1 = new wxToolBar(this, ID_WXTOOLBAR1, wxPoint(0, 0), wxSize(392, 38));
+    WxToolBar1->SetToolBitmapSize(wxSize(24, 24));
 
-    m_Notebook = new wxMadAuiNotebook(this, ID_NOTEBOOK, wxPoint(0,29),wxSize(392,320), wxWANTS_CHARS |wxAUI_NB_TOP|wxAUI_NB_TAB_SPLIT|wxAUI_NB_TAB_MOVE|wxAUI_NB_SCROLL_BUTTONS|wxAUI_NB_WINDOWLIST_BUTTON|wxAUI_NB_CLOSE_ON_ACTIVE_TAB);
+    m_Notebook = new wxMadAuiNotebook(this, ID_NOTEBOOK, wxPoint(0, 38),wxSize(392, 320), wxWANTS_CHARS |wxAUI_NB_TOP|wxAUI_NB_TAB_SPLIT|wxAUI_NB_TAB_MOVE|wxAUI_NB_SCROLL_BUTTONS|wxAUI_NB_WINDOWLIST_BUTTON|wxAUI_NB_CLOSE_ON_ACTIVE_TAB);
     m_Notebook->wxControl::SetWindowStyleFlag(m_Notebook->wxControl::GetWindowStyleFlag() & ~wxTAB_TRAVERSAL);
     m_Notebook->SetDropTarget(new DnDFile());
     m_Notebook->SetArtProvider(new wxAuiSimpleTabArt);
@@ -1723,7 +1743,7 @@ void MadEditFrame::CreateGUIControls()
 
 
     //m_ImageList
-    m_ImageList=new wxImageList(16,15);
+    m_ImageList=new wxImageList(24, 24);
     m_ImageList->Add(wxBitmap(null_xpm));
     m_ImageList->Add(wxBitmap(new_xpm));
     m_ImageList->Add(wxBitmap(fileopen_xpm));
@@ -1739,6 +1759,8 @@ void MadEditFrame::CreateGUIControls()
     m_ImageList->Add(wxBitmap(cut_xpm));
     m_ImageList->Add(wxBitmap(copy_xpm));
     m_ImageList->Add(wxBitmap(paste_xpm));
+    m_ImageList->Add(wxBitmap(delete_xpm));
+    m_ImageList->Add(wxBitmap(olist_xpm));
     m_ImageList->Add(wxBitmap(indent_xpm));
     m_ImageList->Add(wxBitmap(unindent_xpm));
     m_ImageList->Add(wxBitmap(comment_xpm));
@@ -1760,7 +1782,8 @@ void MadEditFrame::CreateGUIControls()
     m_ImageList->Add(wxBitmap(textmode_xpm));
     m_ImageList->Add(wxBitmap(columnmode_xpm));
     m_ImageList->Add(wxBitmap(hexmode_xpm));
-    m_ImageList->Add(wxBitmap(wxmedit_16x15_xpm));
+    m_ImageList->Add(wxBitmap(options_xpm));
+    m_ImageList->Add(wxBitmap(wxmedit0_24x24_xpm));
 
 
     // add menuitems
@@ -1775,6 +1798,7 @@ void MadEditFrame::CreateGUIControls()
     g_Menu_File_CloseMore = new wxMenu(0L);
     g_Menu_File_CopyPath = new wxMenu(0L);
     g_Menu_File_RecentFiles = new wxMenu(0L);
+    g_Menu_Edit_Column = new wxMenu(0L);
     g_Menu_Edit_Sort = new wxMenu(0L);
     g_Menu_Edit_Advanced = new wxMenu(0L);
     g_Menu_View_Encoding = new wxMenu(0L);
@@ -1988,6 +2012,9 @@ void MadEditFrame::CreateGUIControls()
     WxToolBar1->AddTool(menuPaste, _T("Paste"), m_ImageList->GetBitmap(paste_xpm_idx), wxNullBitmap, wxITEM_NORMAL, _("Paste") );
 
     WxToolBar1->AddSeparator();
+    WxToolBar1->AddTool(menuInsertEnumeration, _T("InsertEnum"), m_ImageList->GetBitmap(olist_xpm_idx), wxNullBitmap, wxITEM_NORMAL, _("Insert Ordered Sequence"));
+
+    WxToolBar1->AddSeparator();
     WxToolBar1->AddTool(menuIncreaseIndent, _T("IncIndent"), m_ImageList->GetBitmap(indent_xpm_idx),   wxNullBitmap, wxITEM_NORMAL, _("Increase Indent") );
     WxToolBar1->AddTool(menuDecreaseIndent, _T("DecIndent"), m_ImageList->GetBitmap(unindent_xpm_idx), wxNullBitmap, wxITEM_NORMAL, _("Decrease Indent") );
 
@@ -2140,7 +2167,7 @@ void MadEditFrame::MadEditFrameClose(wxCloseEvent& event)
 
     delete m_ImageList;
 
-    wxm::WXMEncodingManager::Instance().FreeEncodings();
+    xm::EncodingManager::Instance().FreeEncodings();
     wxm::AppPath::Instance().DestroyInstance();
 
     FreeConvertChineseTable();
@@ -2454,6 +2481,9 @@ void MadEditFrame::OnInfoNotebookSize(wxSizeEvent &evt)
         if(pinfo.IsDocked())
         {
             size=g_MainFrame->m_InfoNotebook->GetSize();
+#if defined(__WXMSW__) && wxMAJOR_VERSION==2
+            size.IncBy(g_MainFrame->m_InfoNotebook->GetWindowBorderSize());
+#endif
         }
         else
         {
@@ -2687,17 +2717,18 @@ void MadEditFrame::OpenFile(const wxString &filename, bool mustExist, const Line
 
     if(!filename.IsEmpty())
     {
-        wxString enc, fn;
-        wxFileOffset pos;
-        int fs;
-        pos = g_FileCaretPosManager.GetRestoreData(filename, enc, fn, fs);
+        FileCaretPosManager::PosData data;
+        g_FileCaretPosManager.GetRestoreData(filename, data);
 
-        if(!fn.IsEmpty() && fs > 0)
-        {
-            wxmedit->SetTextFont(fn, fs, false);
-        }
+        if (!data.fontname.IsEmpty() && data.fontsize > 0)
+            wxmedit->SetTextFont(data.fontname, data.fontsize, false);
 
-        if (!wxmedit->LoadFromFile(filename, enc) && mustExist)
+        if (!data.hex_fontname.IsEmpty() && data.hex_fontsize > 0)
+            wxmedit->SetHexFont(data.hex_fontname, data.hex_fontsize, false);
+
+        wxString encoding = (wxm::UseForceEncoding(m_Config))? wxm::GetForceEncoding(m_Config): data.encoding;
+
+        if (!wxmedit->LoadFromFile(filename, encoding.wc_str(), data.hexmode) && mustExist)
         {
             wxLogError(wxString(_("Cannot load this file:")) + wxT("\n\n") + filename);
         }
@@ -2710,10 +2741,8 @@ void MadEditFrame::OpenFile(const wxString &filename, bool mustExist, const Line
 
             bool rcp;
             m_Config->Read(wxT("/wxMEdit/RestoreCaretPos"), &rcp, true);
-            if(rcp)
-            {
-                wxmedit->SetCaretPosition(pos);
-            }
+            if (rcp)
+                wxmedit->SetCaretPosition(data.pos);
         }
     }
     wxString str;
@@ -2734,9 +2763,7 @@ void MadEditFrame::OpenFile(const wxString &filename, bool mustExist, const Line
 
     title = g_active_wxmedit->GetFileName();
     if (title.IsEmpty())
-    {
         title = m_Notebook->GetPageText( GetIdByEdit(g_active_wxmedit) );
-    }
 
     if (g_active_wxmedit->IsModified() && title[title.Len()-1]!=wxT('*'))
         title += wxT('*');
@@ -2746,15 +2773,15 @@ void MadEditFrame::OpenFile(const wxString &filename, bool mustExist, const Line
 
 void MadEditFrame::CloseFile(int pageId)
 {
-    if(QueryCloseFile(pageId))
-    {
-        m_PageClosing=true;
-        g_CheckModTimeForReload=false;
-        m_Notebook->DeletePage(pageId);
-        if(m_Notebook->GetPageCount()==0) OnNotebookPageClosed();
-        g_CheckModTimeForReload=true;
-        m_PageClosing=false;
-    }
+    if (!QueryCloseFile(pageId))
+        return;
+
+    m_PageClosing=true;
+    g_CheckModTimeForReload=false;
+    m_Notebook->DeletePage(pageId);
+    if(m_Notebook->GetPageCount()==0) OnNotebookPageClosed();
+    g_CheckModTimeForReload=true;
+    m_PageClosing=false;
 }
 
 bool MadEditFrame::QueryCloseFile(int idx)
@@ -2925,6 +2952,11 @@ void MadEditFrame::OnUpdateUI_MenuEditCopyAsHexString(wxUpdateUIEvent& event)
 {
     event.Enable(g_active_wxmedit && //g_active_wxmedit->GetEditMode()==emHexMode &&
         g_active_wxmedit->IsSelected());
+}
+
+void MadEditFrame::OnUpdateUI_MenuEdit_Column(wxUpdateUIEvent& event)
+{
+    event.Enable(g_active_wxmedit != nullptr && g_active_wxmedit->GetEditMode() == emColumnMode);
 }
 
 void MadEditFrame::OnUpdateUI_MenuIndent(wxUpdateUIEvent& event)
@@ -3912,6 +3944,16 @@ void MadEditFrame::OnEditInsertEnumeration(wxCommandEvent& event)
     if (g_active_wxmedit!=nullptr) g_active_wxmedit->InsertEnumeration();
 }
 
+void MadEditFrame::OnEditColumnAlign(wxCommandEvent& event)
+{
+    if (g_active_wxmedit!=nullptr) g_active_wxmedit->ColumnAlign();
+}
+
+void MadEditFrame::OnEditColumnPaste(wxCommandEvent& event)
+{
+    if (g_active_wxmedit != nullptr) g_active_wxmedit->ColumnPaste();
+}
+
 namespace wxm
 {
 
@@ -3947,7 +3989,7 @@ struct SearchingTextAssigner
 
 		wxString ws;
 		g_active_wxmedit->GetWordFromCaretPos(ws);
-		if (!ws.IsEmpty() && ws[0]>wxChar(0x20))
+		if (!ws.IsEmpty() && !u_isspace(ws[0]))
 			SetSearchingText(ws);
 	}
 
@@ -4164,10 +4206,10 @@ void MadEditFrame::OnViewEncoding(wxCommandEvent& event)
         return;
 
     int idx=event.GetId()-menuEncoding1;
-    wxString enc=wxm::WXMEncodingManager::Instance().GetEncodingName(idx);
+    std::wstring enc=xm::EncodingManager::Instance().GetEncodingName(idx);
     g_active_wxmedit->SetEncoding(enc);
 
-    wxString str=wxString(wxT('['))+ enc + wxT("] ")+ wxGetTranslation(wxm::WXMEncodingManager::Instance().GetEncodingDescription(idx).c_str());
+    wxString str=wxString(wxT('['))+ enc.c_str() + wxT("] ")+ wxGetTranslation(xm::EncodingManager::Instance().GetEncodingDescription(idx).c_str());
     m_RecentEncodings->AddItemToHistory(str);
 
     int size;
@@ -4189,7 +4231,7 @@ void MadEditFrame::OnViewRecentEncoding(wxCommandEvent& event)
         if( tkz.HasMoreTokens() )
         {
             wxString enc = tkz.GetNextToken();
-            g_active_wxmedit->SetEncoding(enc);
+            g_active_wxmedit->SetEncoding(enc.wx_str());
 
             m_RecentEncodings->AddItemToHistory(str);
 
@@ -4428,7 +4470,8 @@ void MadEditFrame::OnViewHexMode(wxCommandEvent& event)
 
 void MadEditFrame::OnToolsOptions(wxCommandEvent& event)
 {
-    if(g_OptionsDialog==nullptr) g_OptionsDialog=new WXMEditOptionsDialog(this);
+    if(g_OptionsDialog==nullptr)
+        g_OptionsDialog=new WXMEditOptionsDialog(this);
 
     g_OptionsDialog->LoadOptions();
     if(g_OptionsDialog->ShowModal()==wxID_OK)
@@ -4447,6 +4490,9 @@ void MadEditFrame::OnToolsOptions(wxCommandEvent& event)
         m_Config->Write(wxT("CheckPrereleaseUpdates"), wxm::g_check_prerelease);
 
         m_Config->Write(wxT("Language"), g_OptionsDialog->GetSelectedLanguage());
+
+        m_Config->Write(wxT("UseForceEncoding"), g_OptionsDialog->UseForceEncoding());
+        m_Config->Write(wxT("ForceEncoding"), g_OptionsDialog->GetSelectedForceEncoding());
         m_Config->Write(wxT("DefaultEncoding"), g_OptionsDialog->GetSelectedEncoding());
 
         m_Config->Write(wxT("SingleInstance"), g_OptionsDialog->WxCheckBoxSingleInstance->GetValue());
@@ -4796,10 +4842,10 @@ void MadEditFrame::OnToolsConvertEncoding(wxCommandEvent& event)
     if(g_ConvEncDialog->ShowModal()==wxID_OK)
     {
         g_active_wxmedit->ConvertEncoding(g_ConvEncDialog->GetEncoding(),
-                                         MadConvertEncodingFlag(g_ConvEncDialog->WxRadioBoxOption->GetSelection()));
+                                          MadConvertEncodingFlag(g_ConvEncDialog->WxRadioBoxOption->GetSelection()));
         wxString oldpath=m_Config->GetPath();
         m_Config->SetPath(wxT("/wxMEdit"));
-        m_Config->Write(wxT("/wxMEdit/ConvertEncoding"), g_ConvEncDialog->GetEncoding());
+        m_Config->Write(wxT("/wxMEdit/ConvertEncoding"), g_ConvEncDialog->GetEncoding().c_str());
         m_Config->SetPath(oldpath);
 
         wxString str = wxString(wxT('[')) + g_active_wxmedit->GetEncodingName() + wxT("] ")+

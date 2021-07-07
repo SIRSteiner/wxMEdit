@@ -2,7 +2,7 @@
 // vim:         sw=4 ts=4
 // Name:        wxm/update.cpp
 // Description: Checking for Update of wxMEdit
-// Copyright:   2014-2015  JiaYanwei   <wxmedit@gmail.com>
+// Copyright:   2014-2019  JiaYanwei   <wxmedit@gmail.com>
 // License:     GPLv3
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -64,7 +64,7 @@ inline bool IsFirstNewer(const std::string& v1, const std::string& v2, bool chec
 
 bool IsPrerelease(const std::string& ver)
 {
-	return !algo::find_nth(ver, ".", 2).empty();
+	return !algo::find_nth(ver, ".", 1).empty();
 }
 
 std::string AdjustVersion(const std::string& ver, bool with_prerelease)
@@ -72,9 +72,9 @@ std::string AdjustVersion(const std::string& ver, bool with_prerelease)
 	if (with_prerelease)
 		return ver;
 
-	std::string::const_iterator dot3rd = algo::find_nth(ver, ".", 2).begin();
+	std::string::const_iterator dot2nd = algo::find_nth(ver, ".", 1).begin();
 
-	return std::string(ver.begin(), dot3rd);
+	return std::string(ver.begin(), dot2nd);
 }
 
 std::string CheckUpdates(bool check_prerelease)
@@ -123,7 +123,7 @@ void ConfirmUpdate(bool notify_all)
 
 std::string GetVersionFromRemoteChangeLog()
 {
-	std::string str(xm::GetRemoteText("https://raw.github.com/hltj/wxMEdit/master/ChangeLog"));
+	std::string str(xm::GetRemoteText("https://raw.github.com/wxMEdit/wxMEdit/master/ChangeLog"));
 
 	size_t poslf1 = str.find_first_of('\n', 0);
 	size_t poslf2 = str.find_first_of('\n', poslf1+1);
@@ -131,12 +131,10 @@ std::string GetVersionFromRemoteChangeLog()
 
 	std::string ver_line = str.substr(poslf2+1, poslf3-poslf2-1);
 
-	static const xp::sregex ver_regex = xp::sregex::compile("[0-9]+\\.[0-9]+\\.[0-9]+(?:[\\.-][0-9]+)?");
+	static const xp::sregex ver_regex = xp::sregex::compile("[0-9]+\\.[0-9]+(?:\\.[0-9]+[\\.-][0-9]+)?");
 	xp::smatch what;
 	if (xp::regex_search(ver_line, what, ver_regex))
-	{
 		return algo::replace_all_copy(what[0].str(), "-", ".");
-	}
 
 	return std::string();
 }

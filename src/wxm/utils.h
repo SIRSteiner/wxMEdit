@@ -2,7 +2,7 @@
 // vim:         ts=4 sw=4
 // Name:        wxm/utils.h
 // Description: Utilities
-// Copyright:   2013-2015  JiaYanwei   <wxmedit@gmail.com>
+// Copyright:   2013-2019  JiaYanwei   <wxmedit@gmail.com>
 // License:     GPLv3
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -12,7 +12,6 @@
 #include "../xm/cxx11.h"
 #include "choice_map.hpp"
 #include "def.h"
-#include "../wxmedit/ucs4_t.h"
 
 #ifdef _MSC_VER
 # pragma warning( push )
@@ -21,6 +20,7 @@
 // disable 4996 {
 #include <wx/defs.h>
 #include <wx/string.h>
+#include <wx/confbase.h>
 // disable 4996 }
 #ifdef _MSC_VER
 # pragma warning( pop )
@@ -236,6 +236,7 @@ private:
 	{
 	}
 	void SaveConfig() const;
+	void CreateConfigDirInUserHome() const;
 
 	static AppPath* s_inst;
 
@@ -250,10 +251,10 @@ private:
 
 struct WXMControlIDReserver : private boost::noncopyable
 {
-	long RecentFindTextID1() { return fid1; }
-	long RecentFindTextID20() { return fid20; }
-	long RecentReplaceTextID1() { return rid1; }
-	long RecentReplaceTextID20(){ return rid20; }
+	int RecentFindTextID1() { return fid1; }
+	int RecentFindTextID20() { return fid20; }
+	int RecentReplaceTextID1() { return rid1; }
+	int RecentReplaceTextID20(){ return rid20; }
 
 	static WXMControlIDReserver& Instance()
 	{
@@ -262,11 +263,24 @@ struct WXMControlIDReserver : private boost::noncopyable
 	}
 private:
 	WXMControlIDReserver();
-	long fid1;
-	long fid20;
-	long rid1;
-	long rid20;
+	int fid1;
+	int fid20;
+	int rid1;
+	int rid20;
 };
+
+bool UseForceEncoding(const wxConfigBase *cfg);
+wxString GetDefaultOrForceEncoding(const wxConfigBase *cfg);
+
+inline wxString GetForceEncoding(const wxConfigBase *cfg)
+{
+	return cfg->Read(wxT("/wxMEdit/ForceEncoding"));
+}
+
+inline bool UseForceSystemEncoding(const wxConfigBase *cfg)
+{
+	return UseForceEncoding(cfg) && GetForceEncoding(cfg).empty();
+}
 
 } //namespace wxm
 

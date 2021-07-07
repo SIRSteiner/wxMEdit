@@ -1,7 +1,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 // Name:        wxmedit/wxm_syntax.h
 // Description: Syntax Parsing and Syntax File Management
-// Copyright:   2013-2015  JiaYanwei   <wxmedit@gmail.com>
+// Copyright:   2013-2019  JiaYanwei   <wxmedit@gmail.com>
 //              2005-2010  Alston Chen <madedit@gmail.com>
 // License:     GPLv3
 ///////////////////////////////////////////////////////////////////////////////
@@ -9,7 +9,6 @@
 #ifndef _WXM_SYNTAX_H_
 #define _WXM_SYNTAX_H_
 
-#include "ucs4_t.h"
 #include "wxm_lines.h"
 
 #ifdef _MSC_VER
@@ -34,14 +33,15 @@
 # pragma warning( pop )
 #endif
 
-#include <boost/tr1/unordered_set.hpp>
+#include <boost/unordered_set.hpp>
+using boost::unordered_set;
 
 #include <map>
 #include <vector>
 using std::vector;
 
 
-typedef std::tr1::unordered_set<wxString, wxStringHash> MadKeywordSet;
+typedef unordered_set<wxString, wxStringHash> MadKeywordSet;
 
 
 enum MadFontStyle { fsNone=0, fsBold=1, fsItalic=2, fsUnderline=4, fsStrikeOut=8 };
@@ -173,7 +173,7 @@ public:
     vector < wxString > m_RightBrace;
     wxString            m_AutoCompleteLeftChar;
     wxString            m_AutoCompleteRightChar;
-    wxString            m_Encoding;
+    std::wstring        m_Encoding;
 
     vector < int >      m_StringInRange;
     vector < int >      m_LineCommentInRange;
@@ -232,7 +232,7 @@ public:
 private: // for NextWord()
     MadLines    *nw_MadLines;
     MadEdit     *nw_MadEdit;
-    wxm::WXMEncoding *nw_Encoding;
+    xm::Encoding *nw_Encoding;
     ucs4_t      *nw_Word;
     int         *nw_Widths;
     wxString    nw_FontName;
@@ -259,20 +259,20 @@ private: // for NextWord()
     size_t nw_FirstIndex;
     size_t nw_RestCount;
     size_t nw_MaxLength;
-    MadUCQueue nw_ucqueue;
+    xm::UCQueue nw_ucqueue;
 
     bool nw_EndOfLine;
     wxColor nw_Color, nw_BgColor, nw_CurrentBgColor;
     wxFont *nw_Font;
 
-    int FindStringCase(MadUCQueue & ucqueue, size_t first,
+    int FindStringCase(xm::UCQueue & ucqueue, size_t first,
                    MadStringIterator begin, const MadStringIterator & end,
                    size_t & len);
-    int FindStringNoCase(MadUCQueue & ucqueue, size_t first,
+    int FindStringNoCase(xm::UCQueue & ucqueue, size_t first,
                    MadStringIterator begin, const MadStringIterator & end,
                    size_t & len);
 
-    typedef int (MadSyntax::*FindStringPtr)(MadUCQueue & ucqueue, size_t first,
+    typedef int (MadSyntax::*FindStringPtr)(xm::UCQueue & ucqueue, size_t first,
                    MadStringIterator begin, const MadStringIterator & end,
                    size_t & len);
     FindStringPtr FindString;
@@ -280,7 +280,7 @@ private: // for NextWord()
 public:
     void InitNextWord1(MadLines *madlines, ucs4_t *word, int *widths, const wxString &fontname, int fontsize, int fontfamily);
     void InitNextWord2(MadLineIterator &lit, size_t row);
-    void SetEncoding(wxm::WXMEncoding *encoding);
+    void SetEncoding(xm::Encoding *encoding);
 
     // return wordlength
     int NextWord(int &wordwidth);

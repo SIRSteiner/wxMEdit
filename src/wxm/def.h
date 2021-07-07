@@ -2,14 +2,14 @@
 // vim:         ts=4 sw=4
 // Name:        wxm/def.h
 // Description: wxMEdit Common Definitions
-// Copyright:   2013-2015  JiaYanwei   <wxmedit@gmail.com>
+// Copyright:   2013-2019  JiaYanwei   <wxmedit@gmail.com>
 // License:     GPLv3
 ///////////////////////////////////////////////////////////////////////////////
 
 #ifndef _WXM_DEF_H_
 #define _WXM_DEF_H_
 
-#include "../wxmedit/ucs4_t.h"
+#include "../xm/encoding/encoding_def.h"
 
 #ifdef _MSC_VER
 # pragma warning( push )
@@ -26,36 +26,37 @@
 #include <vector>
 #include <string>
 
-#define WXMEDIT_VERSION	"2.9.9.3"
+#define WXMEDIT_VERSION	"3.1"
 
 typedef std::basic_string<ucs4_t> ucs4string;
 
 #if wxMAJOR_VERSION==2
   typedef int wxPrintOrientation;
 # define wxGetSelectedChoices wxGetMultipleChoices
+# define wxPENSTYLE_SOLID wxSOLID
 #endif
 
 typedef std::vector<size_t> LineNumberList;
 
 namespace wxm
 {
-	static const wxString MonoFontName =
+	static const std::wstring MonoFontName =
 #ifdef __WXMSW__
-		wxT("Courier New")
+		L"Courier New"
 #elif defined(__APPLE__) && defined(__MACH__)
-		wxT("Monaco")
+		L"Monaco"
 #else
-		wxT("Monospace")
+		L"Monospace"
 #endif
 	;
 
-	static const wxString ASCIIArtFontName =
+	static const std::wstring ASCIIArtFontName =
 #ifdef __WXMSW__
-		wxT("Courier New")
+		L"Courier New"
 #elif defined(__APPLE__) && defined(__MACH__)
-		wxT("Andale Mono")
+		L"Andale Mono"
 #else
-		wxT("Monospace")
+		L"Monospace"
 #endif
 	;
 

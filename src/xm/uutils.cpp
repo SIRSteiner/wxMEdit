@@ -2,14 +2,13 @@
 // vim:         ts=4 sw=4
 // Name:        xm/xm_uutils.cpp
 // Description: Unicode Utilities
-// Copyright:   2013-2015  JiaYanwei   <wxmedit@gmail.com>
+// Copyright:   2013-2019  JiaYanwei   <wxmedit@gmail.com>
 // License:     GPLv3
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "uutils.h"
 #include <unicode/brkiter.h>
 #include <unicode/locid.h>
-#include <boost/scoped_ptr.hpp>
 
 #ifdef _DEBUG
 #include <crtdbg.h>
@@ -19,14 +18,10 @@
 namespace xm
 {
 
-void CountWords(const UnicodeString& ustr, size_t& cnt, size_t& ctrl_cnt, size_t& sp_cnt)
+void WordCounter::CountWords(const UnicodeString& ustr, size_t& cnt, size_t& ctrl_cnt, size_t& sp_cnt)
 {
-	UErrorCode status = U_ZERO_ERROR;
-	boost::scoped_ptr<BreakIterator> bi (
-			BreakIterator::createWordInstance(Locale::getDefault(), status)
-			);
-	bi->setText(ustr);
-	int32_t i = bi->first();
+	m_bi->setText(ustr);
+	int32_t i = m_bi->first();
 	while (i < ustr.length())
 	{
 		++cnt;
@@ -38,7 +33,7 @@ void CountWords(const UnicodeString& ustr, size_t& cnt, size_t& ctrl_cnt, size_t
 		else if(u_isspace(ch))
 			++sp_cnt;
 
-		i = bi->next();
+		i = m_bi->next();
 	}
 }
 
@@ -131,20 +126,23 @@ void AccumulativeWordCounter::PiecewiseCount(UChar32 ch)
 
 void NonBMPtoUTF16(UChar32 ch, UChar* buf)
 {
-	//ucs4=(highChar -0xD800) * 0x400 + (lowChar -0xDC00) + 0x10000
-	//if(ucs4>0x10FFFF) return 0;
-
-	//wxASSERT(ucs4>=0x10000 && ucs4<=0x10FFFF);
-
 	ch -= 0x10000;
 	buf[0] = (ch >> 10) + 0xD800;    // high surrogate
 	buf[1] = (ch & 0x3FF) + 0xDC00;  // low surrogate
-
 }
 
 size_t NonBMPtoUTF16LE(UChar32 ch, uint8_t* buf)
 {
 	NonBMPtoUTF16(ch, (UChar*)buf);
+	return 4;
+}
+
+size_t NonBMPtoUTF16BE(UChar32 ch, uint8_t* buf)
+{
+	NonBMPtoUTF16(ch, (UChar*)buf);
+	uint16_t* ubuf = (uint16_t*)(buf);
+	ubuf[0] = UIntSwap(ubuf[0]);
+	ubuf[1] = UIntSwap(ubuf[1]);
 	return 4;
 }
 

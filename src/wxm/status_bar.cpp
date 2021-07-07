@@ -2,7 +2,7 @@
 // vim:         ts=4 sw=4
 // Name:        wxm/status_bar.cpp
 // Description: Status Bar Functions
-// Copyright:   2015  JiaYanwei   <wxmedit@gmail.com>
+// Copyright:   2016-2019  JiaYanwei   <wxmedit@gmail.com>
 // License:     GPLv3
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -23,18 +23,18 @@ void WXMStatusBar::Init(MadEditFrame* frame, wxWindowID id)
 	m_statusbar = new wxStatusBar(m_frame, id);
 
 #if defined(__WXGTK__)
-	m_statusbar->SetFont(wxFont(9, wxDEFAULT, wxNORMAL, wxNORMAL, false));
+	m_statusbar->SetFont(wxFont(9, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false));
 #endif
 }
 
 void WXMStatusBar::Resize()
 {
 #ifdef __WXMSW__
-	static int status_width_1_6 =     (220+ 235+ 135+ 155+ 65+ (50 + 10));
-	static int status_widths[7] = { 0, 220, 235, 135, 155, 65, (50 + 10) };
+	static int status_width_1_6 =     (220+ 305+ 135+ 155+ 65+ (50 + 10));
+	static int status_widths[7] = { 0, 220, 305, 135, 155, 65, (50 + 10) };
 #else
-	static int status_width_1_6 =     (220+ 235+ 135+ 155+ 65+ (50 + 0));
-	static int status_widths[7] = { 0, 220, 235, 135, 155, 65, (50 + 0) };
+	static int status_width_1_6 =     (220+ 305+ 135+ 155+ 65+ (50 + 0));
+	static int status_widths[7] = { 0, 220, 305, 135, 155, 65, (50 + 0) };
 #endif
 
 	// status bar field widths

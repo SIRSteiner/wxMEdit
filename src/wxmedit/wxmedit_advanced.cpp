@@ -2,7 +2,7 @@
 // vim:         sw=4 ts=4 expandtab
 // Name:        wxmedit/wxmedit_advanced.cpp
 // Description: Advanced Functions of wxMEdit
-// Copyright:   2013-2015  JiaYanwei   <wxmedit@gmail.com>
+// Copyright:   2013-2019  JiaYanwei   <wxmedit@gmail.com>
 //              2006-2010  Alston Chen <madedit@gmail.com>
 // License:     GPLv3
 ///////////////////////////////////////////////////////////////////////////////
@@ -17,6 +17,8 @@
 #include "../wxm/searcher.h"
 
 #include <boost/scoped_ptr.hpp>
+#include <boost/algorithm/string/predicate.hpp>
+
 #include <algorithm>
 #include <vector>
 using std::vector;
@@ -25,6 +27,8 @@ using std::vector;
 #include <crtdbg.h>
 #define new new(_NORMAL_BLOCK ,__FILE__, __LINE__)
 #endif
+
+namespace algo = boost::algorithm;
 
 //==============================================================================
 
@@ -125,13 +129,12 @@ wxString *ConvertTextToNewString(const wxString& text, MadConvertChineseFlag fla
     return ptext;
 }
 
-void MadEdit::ConvertEncoding(const wxString &newenc, MadConvertEncodingFlag flag)
+void MadEdit::ConvertEncoding(const std::wstring & newenc, MadConvertEncodingFlag flag)
 {
-    if(IsReadOnly() || !IsTextFile())
+    if (IsReadOnly() || !IsTextFile())
         return;
 
-    wxString lowerenc=newenc.Lower();
-    if(lowerenc == m_Encoding->GetName().Lower())
+    if (algo::iequals(newenc, m_Encoding->GetName()))
     {
         switch(flag)
         {
@@ -147,7 +150,7 @@ void MadEdit::ConvertEncoding(const wxString &newenc, MadConvertEncodingFlag fla
         return;
     }
 
-    if(m_Lines->m_Size == 0)
+    if (m_Lines->m_Size == 0)
     {
         SetEncoding(newenc);
         return;
@@ -156,8 +159,8 @@ void MadEdit::ConvertEncoding(const wxString &newenc, MadConvertEncodingFlag fla
     WXMLocations loc = SaveLocations();
 
     bool ignoreBOM=true;
-	wxm::WXMEncoding* enc = wxm::WXMEncodingManager::Instance().GetWxmEncoding(newenc);
-	if(enc->IsUnicodeEncoding())
+    xm::Encoding* enc = xm::EncodingManager::Instance().GetEncoding(newenc);
+    if (enc->IsUnicodeEncoding())
     {
         ignoreBOM=false;
     }
@@ -165,15 +168,13 @@ void MadEdit::ConvertEncoding(const wxString &newenc, MadConvertEncodingFlag fla
     wxString text, *ptext=nullptr;
     GetText(text, ignoreBOM);
 
-    if(flag != cefNone)
+    if (flag != cefNone)
     {
-        MadConvertEncodingFlag cefs[]=
-            { cefSC2TC, cefTC2SC, cefJK2TC, cefJK2SC, cefC2JK };
-        MadConvertChineseFlag ccfs[]=
-            { ccfSimp2Trad, ccfTrad2Simp, ccfKanji2Trad, ccfKanji2Simp, ccfChinese2Kanji };
-        for(size_t i=0; i<sizeof(cefs)/sizeof(cefs[0]); ++i)
+        MadConvertEncodingFlag cefs[]= { cefSC2TC, cefTC2SC, cefJK2TC, cefJK2SC, cefC2JK };
+        MadConvertChineseFlag ccfs[]= { ccfSimp2Trad, ccfTrad2Simp, ccfKanji2Trad, ccfKanji2Simp, ccfChinese2Kanji };
+        for (size_t i=0; i<sizeof(cefs)/sizeof(cefs[0]); ++i)
         {
-            if(flag==cefs[i])
+            if (flag==cefs[i])
             {
                 ptext=ConvertTextToNewString(text, ccfs[i]);
                 break;
@@ -185,7 +186,7 @@ void MadEdit::ConvertEncoding(const wxString &newenc, MadConvertEncodingFlag fla
     SetEncoding(newenc);
     m_LoadingFile=false;
 
-    if(ptext)
+    if (ptext)
     {
         SetText(*ptext);
         delete ptext;
@@ -433,7 +434,7 @@ void MadEdit::IncreaseDecreaseIndent(bool incIndent)
     wxByte *buf=&buffervector[0];
 
     vector <ucs4_t> spaces;
-    MadUCQueue ucqueue;
+    xm::UCQueue ucqueue;
     wxFileOffset delsize=0;
     for(;;)  // for each line
     {
@@ -451,11 +452,11 @@ void MadEdit::IncreaseDecreaseIndent(bool incIndent)
         // get spaces at begin of line
         while(m_Lines->NextUChar(ucqueue))
         {
-            uc=ucqueue.back().first;
+            uc=ucqueue.back().ucs4();
             if(uc==0x20 || uc==0x09)
             {
                 spaces.push_back(uc);
-                nonspacepos+=ucqueue.back().second;
+                nonspacepos+=ucqueue.back().nbytes();
             }
             else
             {
@@ -600,7 +601,7 @@ void MadEdit::CommentUncomment(bool comment)
     wxByte *buf=&buffervector[0];
 
     vector <ucs4_t> spaces;
-    MadUCQueue ucqueue;
+    xm::UCQueue ucqueue;
     wxFileOffset delsize=0;
     for(;;)  // for each line
     {
@@ -618,11 +619,11 @@ void MadEdit::CommentUncomment(bool comment)
         // get spaces at begin of line
         while(m_Lines->NextUChar(ucqueue))
         {
-            uc=ucqueue.back().first;
+            uc=ucqueue.back().ucs4();
             if(uc==0x20 || uc==0x09)
             {
                 spaces.push_back(uc);
-                nonspacepos+=ucqueue.back().second;
+                nonspacepos+=ucqueue.back().nbytes();
             }
             else
             {
@@ -638,8 +639,8 @@ void MadEdit::CommentUncomment(bool comment)
             size_t cmtsize=0;
             do
             {
-                cmt.push_back(ucqueue.back().first);
-                cmtsize+=ucqueue.back().second;
+                cmt.push_back(ucqueue.back().ucs4());
+                cmtsize+=ucqueue.back().nbytes();
             }
             while(cmt.size()<commentlen && m_Lines->NextUChar(ucqueue));
 
@@ -1251,10 +1252,10 @@ void MadEdit::WordCount(bool selection, wxm::WordCountData& data)
     data.bytes = int(endpos - nowpos);
 
     // begin counting
-    MadUCQueue ucqueue;
+    xm::UCQueue ucqueue;
     m_Lines->InitNextUChar(lit, linepos);
     int idx=0, count=0;
-    boost::scoped_ptr<xm::WordCounter> word_counter(new xm::AccumulativeWordCounter(0x4000));
+    boost::scoped_ptr<xm::WordCounter> word_counter(new xm::AccumulativeWordCounter(m_word_bi, 0x4000));
 
     while (nowpos < endpos)
     {
@@ -1270,9 +1271,9 @@ void MadEdit::WordCount(bool selection, wxm::WordCountData& data)
             m_Lines->InitNextUChar(lit, 0);
             m_Lines->NextUChar(ucqueue);
         }
-        MadUCPair &ucp=ucqueue.back();
-        nowpos+=ucp.second;
-        ucs4_t uc=ucp.first;
+        xm::CharUnit& cu=ucqueue.back();
+        nowpos+=cu.nbytes();
+        ucs4_t uc=cu.ucs4();
 
         idx = ublock_set.FindBlockIndex(uc);
         ublock_counter.Count(idx);
@@ -1335,14 +1336,14 @@ SortLineData::SortLineData(const MadLineIterator& l, int id)
     int numstep=NUM_SIGN;
     int num_idx=0;
 
-    static MadUCQueue ucq;
+    static xm::UCQueue ucq;
     ucq.clear();
 
     s_lines->InitNextUChar(lit, lit->m_RowIndices[0].m_Start);
     ucs4_t uc;
     while(s_lines->NextUChar(ucq)) // get line content
     {
-        if( (uc=ucq.back().first)==0x0D || uc==0x0A)
+        if( (uc=ucq.back().ucs4())==0x0D || uc==0x0A)
         {
             ucq.pop_back();
             break;
@@ -1450,7 +1451,7 @@ SortLineData::SortLineData(const MadLineIterator& l, int id)
         {
             do
             {
-                if(ucq[int_begin].first!='0')
+                if(ucq[int_begin].ucs4()!='0')
                 {
                     break;
                 }
@@ -1462,7 +1463,7 @@ SortLineData::SortLineData(const MadLineIterator& l, int id)
         {
             do
             {
-                if(ucq[frac_begin+frac_len-1].first!='0')
+                if(ucq[frac_begin+frac_len-1].ucs4()!='0')
                 {
                     break;
                 }
@@ -1932,6 +1933,19 @@ void MadEdit::ConvertNewLineToWordWrap()
     }
 }
 
+void MadEdit::AppendNewLine(vector<ucs4_t>& newtext, const MadLineIterator& lit, size_t firstrow, size_t lastrow, size_t subrowid)
+{
+    if(GetEditMode() == emColumnMode)
+    {
+        wxm::g_nl_default.ValueAppendTo(newtext);
+    }
+    else
+    {
+        if((firstrow != lastrow) && (subrowid+1 == lit->RowCount()))
+            lit->m_nl->ValueAppendTo(newtext);
+    }
+}
+
 void MadEdit::ConvertSpaceToTab()
 {
     if(IsReadOnly() || GetEditMode()==emHexMode || !IsSelected())
@@ -1948,7 +1962,7 @@ void MadEdit::ConvertSpaceToTab()
     const size_t lastrow = m_SelectionEnd->rowid;
     const int RowCount = int(lastrow - firstrow + 1);
 
-    MadUCQueue ucqueue;
+    xm::UCQueue ucqueue;
     for(;;)
     {
         int rowwidth = lit->m_RowIndices[subrowid].m_Width;
@@ -1998,28 +2012,20 @@ void MadEdit::ConvertSpaceToTab()
             {
                 int uc = 0x0D;
                 if(m_Lines->NextUChar(ucqueue))
-                    uc = ucqueue.back().first;
+                    uc = ucqueue.back().ucs4();
 
                 if(uc == 0x0D || uc == 0x0A)    // EOL
                 {
                     break;
                 }
 
-                int ucwidth = GetUCharWidth(uc);
-                if(uc == 0x09)
-                {
-                    int tabwidth = m_TabColumns * GetSpaceCharFontWidth();
-                    ucwidth = rowwidth - nowxpos;
-                    tabwidth -= (nowxpos % tabwidth);
-                    if(tabwidth < ucwidth)
-                        ucwidth = tabwidth;
-                }
+                int ucwidth = GetUCharTextFontWidth(uc, rowwidth, nowxpos);
                 nowxpos += ucwidth;
 
                 int uchw = ucwidth >> 1;
                 if(xpos1 > uchw)
                 {
-                    rowpos += ucqueue.back().second;
+                    rowpos += ucqueue.back().nbytes();
                     xpos1 -= ucwidth;
                     xpos2 -= ucwidth;
                 }
@@ -2082,30 +2088,7 @@ void MadEdit::ConvertSpaceToTab()
             }
         }
 
-        // add newline
-        if(GetEditMode() == emColumnMode)
-        {
-            wxm::g_nl_default.ValueAppendTo(newtext);
-        }
-        else
-        {
-            if((firstrow != lastrow) && (subrowid+1 == lit->RowCount()))
-            {
-                switch(m_Lines->GetNewLine(lit))
-                {
-                case 0x0D:
-                    newtext.push_back(0x0D);
-                    break;
-                case 0x0A:
-                    newtext.push_back(0x0A);
-                    break;
-                case 0x0D+0x0A:
-                    newtext.push_back(0x0D);
-                    newtext.push_back(0x0A);
-                    break;
-                }
-            }
-        }
+        AppendNewLine(newtext, lit, firstrow, lastrow, subrowid);
 
         if(firstrow == lastrow)
             break;
@@ -2147,7 +2130,7 @@ void MadEdit::ConvertTabToSpace()
     const size_t lastrow = m_SelectionEnd->rowid;
     const int RowCount = int(lastrow - firstrow + 1);
 
-    MadUCQueue ucqueue;
+    xm::UCQueue ucqueue;
     for(;;)
     {
         int rowwidth = lit->m_RowIndices[subrowid].m_Width;
@@ -2196,28 +2179,20 @@ void MadEdit::ConvertTabToSpace()
             {
                 int uc = 0x0D;
                 if(m_Lines->NextUChar(ucqueue))
-                    uc = ucqueue.back().first;
+                    uc = ucqueue.back().ucs4();
 
                 if(uc == 0x0D || uc == 0x0A)    // EOL
                 {
                     break;
                 }
 
-                int ucwidth = GetUCharWidth(uc);
-                if(uc == 0x09)
-                {
-                    int tabwidth = m_TabColumns * GetSpaceCharFontWidth();
-                    ucwidth = rowwidth - nowxpos;
-                    tabwidth -= (nowxpos % tabwidth);
-                    if(tabwidth < ucwidth)
-                        ucwidth = tabwidth;
-                }
+                int ucwidth = GetUCharTextFontWidth(uc, rowwidth, nowxpos);
                 nowxpos += ucwidth;
 
                 int uchw = ucwidth >> 1;
                 if(xpos1 > uchw)
                 {
-                    rowpos += ucqueue.back().second;
+                    rowpos += ucqueue.back().nbytes();
                     xpos1 -= ucwidth;
                     xpos2 -= ucwidth;
                 }
@@ -2254,30 +2229,7 @@ void MadEdit::ConvertTabToSpace()
             while(xpos2 > 0 && rowpos < rowendpos);
         }
 
-        // add newline
-        if(GetEditMode() == emColumnMode)
-        {
-            wxm::g_nl_default.ValueAppendTo(newtext);
-        }
-        else
-        {
-            if((firstrow != lastrow) && (subrowid+1 == lit->RowCount()))
-            {
-                switch(m_Lines->GetNewLine(lit))
-                {
-                case 0x0D:
-                    newtext.push_back(0x0D);
-                    break;
-                case 0x0A:
-                    newtext.push_back(0x0A);
-                    break;
-                case 0x0D+0x0A:
-                    newtext.push_back(0x0D);
-                    newtext.push_back(0x0A);
-                    break;
-                }
-            }
-        }
+        AppendNewLine(newtext, lit, firstrow, lastrow, subrowid);
 
         if(firstrow == lastrow)
             break;

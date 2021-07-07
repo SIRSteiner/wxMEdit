@@ -1,15 +1,20 @@
+///////////////////////////////////////////////////////////////////////////////
+// vim:         sw=4 ts=4
+// Description: Test Suite
+// Copyright:   2013-2019  JiaYanwei   <wxmedit@gmail.com>
+// License:     GPLv3
+///////////////////////////////////////////////////////////////////////////////
 #include "encoding_test.h"
 #include "encdet_test.h"
+#include "../src/xm/encoding/external.h"
 
-#include <boost/version.hpp>
-
-#if BOOST_VERSION >= 103400
 # include <boost/test/included/unit_test.hpp>
-#else
-# include <boost/test/included/unit_test_framework.hpp>
-#endif
 
 #include <iostream>
+
+std::wstring GetMSCPFontName(const std::wstring & mscp) { return L"monospace"; }
+std::wstring GetASCIIArtFontName() { return L"monospace"; }
+const wchar_t * LocalizeText(const wchar_t* txt) { return txt; }
 
 boost::unit_test::test_suite* init_unit_test_suite(int argc, char* argv[])
 {

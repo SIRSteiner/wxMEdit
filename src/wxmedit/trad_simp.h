@@ -1,7 +1,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 // Name:        wxmedit/trad_simp.h
 // Description: Traditional Chinese <==> Simplified Chinese <==> Japanese Kanji
-// Copyright:   2013-2015  JiaYanwei   <wxmedit@gmail.com>
+// Copyright:   2013-2019  JiaYanwei   <wxmedit@gmail.com>
 //              2006-2010  Alston Chen <madedit@gmail.com>
 // License:     GPLv3
 ///////////////////////////////////////////////////////////////////////////////
@@ -9,7 +9,16 @@
 #ifndef _TRAD_SIMP_H_
 #define _TRAD_SIMP_H_
 
-#include "ucs4_t.h"
+#ifdef _MSC_VER
+# pragma warning( push )
+# pragma warning( disable : 4996 )
+#endif
+// disable 4996 {
+#include <wx/defs.h>
+// disable 4996 }
+#ifdef _MSC_VER
+# pragma warning( pop )
+#endif
 
 // Trad: Traditional Chinese characters
 // Simp: Simplified Chinese characters

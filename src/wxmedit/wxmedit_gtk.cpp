@@ -1,41 +1,42 @@
 ///////////////////////////////////////////////////////////////////////////////
 // Name:        wxmedit/wxmedit_gtk.cpp
 // Description: Fixed GTK2 KeyPress Event Handler for CJK InputMethod
-// Copyright:   2013-2015  JiaYanwei   <wxmedit@gmail.com>
+// Copyright:   2013-2019  JiaYanwei   <wxmedit@gmail.com>
 //              2006-2010  Alston Chen <madedit@gmail.com>
 // License:     GPLv3
 ///////////////////////////////////////////////////////////////////////////////
 
-#ifdef __WXGTK__
-
 #include "../xm/cxx11.h"
 #include "wxmedit.h"
-//#include <wx/gtk/private.h> // wxGTK-2.6.3 above
+#include <gtk/gtk.h>
+
+#if wxMAJOR_VERSION == 3
+
+GtkIMContext* GetWindowIMContext(wxWindow *win)
+{
+    return win->m_imContext;
+}
+
+#else // wxMAJOR_VERSION == 2
 #include <gdk/gdk.h>
 #include <gdk/gdkx.h>
 #include <gdk/gdkprivate.h>
-#include <gtk/gtk.h>
 #include <gdk/gdkkeysyms.h>
 #include <glib-object.h>
 #include <X11/XKBlib.h>
 #include <iostream>
 
-
 // source code from:
 /////////////////////////////////////////////////////////////////////////////
 // Name:        src/gtk/window.cpp
-// Purpose:
+// Purpose:     wxWindowGTK implementation
 // Author:      Robert Roebling
-// Id:          $Id: window.cpp,v 1.680 2006/12/03 13:59:40 VZ Exp $
 // Copyright:   (c) 1998 Robert Roebling, Julian Smart
 // Licence:     wxWindows licence
 /////////////////////////////////////////////////////////////////////////////
 
-extern bool g_isIdle;
-#if wxMAJOR_VERSION == 2
 extern bool g_blockEventsOnDrag;
 extern bool g_mainThreadLocked;
-#endif
 
 //-----------------------------------------------------------------------------
 // debug
@@ -43,7 +44,7 @@ extern bool g_mainThreadLocked;
 
 #ifdef __WXDEBUG__
 
-#if wxUSE_THREADS && wxMAJOR_VERSION == 2
+#if wxUSE_THREADS
 #   define DEBUG_MAIN_THREAD if (wxThread::IsMain() && g_mainThreadLocked) printf("gui reentrance");
 #else
 #   define DEBUG_MAIN_THREAD
@@ -368,10 +369,8 @@ static void wxFillOtherKeyEventFields(wxKeyEvent& event,
     event.m_shiftDown = (gdk_event->state & GDK_SHIFT_MASK) != 0;
     event.m_controlDown = (gdk_event->state & GDK_CONTROL_MASK) != 0;
     event.m_altDown = (gdk_event->state & GDK_MOD1_MASK) != 0;
-    event.m_metaDown = (gdk_event->state & GDK_MOD2_MASK) != 0;
-#if wxMAJOR_VERSION == 2
+    event.m_metaDown = (gdk_event->state & GDK_META_MASK) != 0;
     event.m_scanCode = gdk_event->keyval;
-#endif
     event.m_rawCode = (wxUint32) gdk_event->keyval;
     event.m_rawFlags = 0;
 #if wxUSE_UNICODE
@@ -510,33 +509,6 @@ struct wxGtkIMData
     }
 };
 
-GtkIMContext* IMContext(wxWindow* win)
-{
-#if wxMAJOR_VERSION == 2
-    return win->m_imData->context;
-#else
-    return win->m_imContext;
-#endif
-}
-
-void ResetIMKeyEvent(wxWindow* win)
-{
-#if wxMAJOR_VERSION == 2
-    win->m_imData->lastKeyEvent = nullptr;
-#else
-    win->m_imKeyEvent = nullptr;
-#endif
-}
-
-bool isIMDataNull(wxWindow* win)
-{
-#if wxMAJOR_VERSION == 2
-    return win->m_imData == nullptr;
-#else
-    return win->m_imKeyEvent == nullptr;
-#endif
-}
-
 extern "C" {
 static gboolean
 gtk_window_key_press_callback( GtkWidget *widget,
@@ -546,14 +518,17 @@ gtk_window_key_press_callback( GtkWidget *widget,
     DEBUG_MAIN_THREAD
 
     // don't need to install idle handler, its done from "event" signal
-#if wxMAJOR_VERSION == 2
+
     if (!win->m_hasVMT)
         return FALSE;
-
     if (g_blockEventsOnDrag)
         return FALSE;
-#endif
 
+    // GTK+ sends keypress events to the focus widget and then
+    // to all its parent and grandparent widget. We only want
+    // the key events from the focus widget.
+    if (!GTK_WIDGET_HAS_FOCUS(widget))
+        return FALSE;
 
     wxKeyEvent event( wxEVT_KEY_DOWN );
     bool ret = false;
@@ -578,13 +553,13 @@ gtk_window_key_press_callback( GtkWidget *widget,
     // widgets has both IM context and input focus, the event should be filtered
     // by gtk_im_context_filter_keypress().
     // Then, we should, according to GTK+ 2.0 API doc, return whatever it returns.
-    if ((!ret) && !isIMDataNull(win) && ( wxWindow::FindFocus() == win ))
+    if ((!ret) && (win->m_imData != NULL) && ( wxWindow::FindFocus() == win ))
     {
         // We should let GTK+ IM filter key event first. According to GTK+ 2.0 API
         // docs, if IM filter returns true, no further processing should be done.
         // we should send the key_down event anyway.
-        bool intercepted_by_IM = gtk_im_context_filter_keypress(IMContext(win), gdk_event);
-        ResetIMKeyEvent(win);
+        bool intercepted_by_IM = gtk_im_context_filter_keypress(win->m_imData->context, gdk_event);
+        win->m_imData->lastKeyEvent = NULL;
         if (intercepted_by_IM)
         {
             wxLogTrace(TRACE_KEYS, _T("Key event intercepted by IM"));
@@ -610,8 +585,18 @@ gtk_window_key_press_callback( GtkWidget *widget,
             int command = ancestor->GetAcceleratorTable()->GetCommand( event );
             if (command != -1)
             {
-                wxCommandEvent command_event( wxEVT_COMMAND_MENU_SELECTED, command );
-                ret = ancestor->GetEventHandler()->ProcessEvent( command_event );
+                wxCommandEvent menu_event( wxEVT_COMMAND_MENU_SELECTED, command );
+                ret = ancestor->GetEventHandler()->ProcessEvent( menu_event );
+
+                if ( !ret )
+                {
+                    // if the accelerator wasn't handled as menu event, try
+                    // it as button click (for compatibility with other
+                    // platforms):
+                    wxCommandEvent button_event( wxEVT_COMMAND_BUTTON_CLICKED, command );
+                    ret = ancestor->GetEventHandler()->ProcessEvent( button_event );
+                }
+
                 break;
             }
             if (ancestor->IsTopLevel())
@@ -683,26 +668,24 @@ gtk_window_key_press_callback( GtkWidget *widget,
 
     // win is a control: tab can be propagated up
     if ( !ret &&
-         ((gdk_event->keyval == GDK_Tab) || (gdk_event->keyval == GDK_ISO_Left_Tab)) &&
-// VZ: testing for wxTE_PROCESS_TAB shouldn't be done here - the control may
-//     have this style, yet choose not to process this particular TAB in which
-//     case TAB must still work as a navigational character
-// JS: enabling again to make consistent with other platforms
-//     (with wxTE_PROCESS_TAB you have to call Navigate to get default
-//     navigation behaviour)
+         (gdk_event->keyval == GDK_Tab || gdk_event->keyval == GDK_ISO_Left_Tab)
 #if wxUSE_TEXTCTRL
-         (! (win->HasFlag(wxTE_PROCESS_TAB) && win->IsKindOf(CLASSINFO(wxTextCtrl)) )) &&
+         && !(win->HasFlag(wxTE_PROCESS_TAB) && wxDynamicCast(win, wxTextCtrl))
 #endif
-         win->GetParent() && (win->GetParent()->HasFlag( wxTAB_TRAVERSAL)) )
+       )
     {
-        wxNavigationKeyEvent new_event;
-        new_event.SetEventObject( win->GetParent() );
-        // GDK reports GDK_ISO_Left_Tab for SHIFT-TAB
-        new_event.SetDirection( (gdk_event->keyval == GDK_Tab) );
-        // CTRL-TAB changes the (parent) window, i.e. switch notebook page
-        new_event.SetWindowChange( (gdk_event->state & GDK_CONTROL_MASK) );
-        new_event.SetCurrentFocus( win );
-        ret = win->GetParent()->GetEventHandler()->ProcessEvent( new_event );
+        wxWindow * const parent = win->GetParent();
+        if ( parent && parent->HasFlag(wxTAB_TRAVERSAL) )
+        {
+            wxNavigationKeyEvent new_event;
+            new_event.SetEventObject( parent );
+            // GDK reports GDK_ISO_Left_Tab for SHIFT-TAB
+            new_event.SetDirection( (gdk_event->keyval == GDK_Tab) );
+            // CTRL-TAB changes the (parent) window, i.e. switch notebook page
+            new_event.SetWindowChange( (gdk_event->state & GDK_CONTROL_MASK) );
+            new_event.SetCurrentFocus( win );
+            ret = parent->GetEventHandler()->ProcessEvent( new_event );
+        }
     }
 
     return ret;
@@ -724,13 +707,12 @@ gtk_window_key_release_callback( GtkWidget *widget,
     DEBUG_MAIN_THREAD
 
     // don't need to install idle handler, its done from "event" signal
-#if wxMAJOR_VERSION == 2
+
     if (!win->m_hasVMT)
         return FALSE;
 
     if (g_blockEventsOnDrag)
         return FALSE;
-#endif
 
     wxKeyEvent event( wxEVT_KEY_UP );
     if ( !wxTranslateGTKKeyEventToWx(event, win, gdk_event) )
@@ -778,10 +760,9 @@ void MadEdit::ConnectToFixedKeyPressHandler()
     g_signal_connect (connect_widget, "key_release_event", G_CALLBACK (gtk_window_key_release_callback), this);
 }
 
-
-GtkIMContext *GetWindowIMContext(wxWindow *win)
+GtkIMContext* GetWindowIMContext(wxWindow *win)
 {
-    return IMContext(win);
+    return win->m_imData->context;
 }
 
-#endif // __WXGTK__
+#endif // wxMAJOR_VERSION
